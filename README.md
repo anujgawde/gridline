@@ -4,17 +4,6 @@ A drawing-set workspace for construction teams in the field.
 
 A construction project ships with 1,500–2,000 large-format drawing sheets. On site, a superintendent needs to open the current revision of a specific sheet, see what changed since they last looked, and mark it up — usually on a tablet, usually on bad connectivity. Gridline is a frontend architecture thesis built around that problem.
 
-## What this project proves
-
-| # | Claim | How |
-|---|-------|-----|
-| P1 | Large document rendering without blocking the main thread | Tile pyramid + worker-based PDF parse, measured frame times |
-| P2 | Bounded memory over an unbounded dataset | Explicit budget + LRU eviction, live perf panel |
-| P3 | Virtualized large collections, not just large items | Set Navigator over 2,000 sheets at 60fps |
-| P4 | Independently deployed frontends with a real contract | 4 separate pipelines, versioned event bus |
-| P5 | Graceful degradation, not collapse | MFE kill-switch demo, offline mode |
-| P6 | Knowing when *not* to add an MFE | ADRs, Markup deliberately left as a module |
-
 ## Architecture
 
 Four microfrontends composed at runtime via Rspack Module Federation 2.0:
