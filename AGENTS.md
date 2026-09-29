@@ -5,15 +5,19 @@ architecture thesis about rendering, memory, and microfrontend boundaries.
 
 ## Current state
 
-Pre-alpha. **Only the monorepo scaffolding exists.** There are no workspace
-packages yet — `packages/`, `apps/`, `tools/`, and `docs/` do not exist, and
-the workspace globs currently match nothing.
+Pre-alpha. Two workspace packages exist:
 
-The directory tree in `README.md` is planned, not real. Verify a path exists
-before referencing it.
+- **`packages/platform`** — `@gridline/platform`. Design tokens as CSS custom
+  properties, and the event bus with its zod contracts. No UI primitives yet,
+  and no React dependency.
+- **`apps/shell`** — `@gridline/shell`. An Rspack + React app that renders the
+  chrome from the tokens. Not yet a Module Federation host.
 
-Still to build: the `@gridline/platform` package (tokens, UI primitives,
-event bus), Module Federation wiring between shell and a remote, MSW, and CI.
+`tools/` and `docs/` do not exist. The directory tree in `README.md` is partly
+planned, so verify a path exists before referencing it.
+
+Still to build: UI primitives in `platform`, Module Federation wiring between
+shell and a remote, runtime manifest resolution, MSW, and CI.
 
 ## Commands
 
@@ -26,7 +30,8 @@ event bus), Module Federation wiring between shell and a remote, MSW, and CI.
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-All of these currently run in 0 packages. That is expected, not a bug.
+`build` and `typecheck` run in 2 packages; `test` runs in `platform` only.
+`pnpm dev` serves the shell on port 4100.
 
 ## Monorepo conventions
 
@@ -42,7 +47,9 @@ All of these currently run in 0 packages. That is expected, not a bug.
   package still declares the dependency while the version lives in one place.
   This is how the React singleton policy is enforced.
 - **Every package extends the root `tsconfig.json`** and adds its own
-  `outDir`, `rootDir`, and `include`. The root config compiles nothing.
+  `include`. The root config compiles nothing. A package that emits through
+  `tsc` adds `outDir` and `rootDir`; an app bundled by Rspack sets `noEmit`
+  instead, since the bundler owns the output and `tsc` only checks types.
 - **Rspack `output.path` must stay inside `dist/`**, since `turbo.json`
   declares `outputs: ["dist/**"]`. A `remoteEntry.js` emitted outside `dist/`
   will not survive a Turborepo cache restore.

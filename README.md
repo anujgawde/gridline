@@ -52,7 +52,7 @@ gridline/
 
 ## Status
 
-Pre-alpha. Monorepo foundations in place; workspace packages are being added incrementally.
+Pre-alpha. The platform package ships design tokens and the event bus; the shell renders its chrome from those tokens. Module Federation, the three remotes, and the tiling pipeline are not wired yet.
 
 ## License
 
