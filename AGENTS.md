@@ -10,14 +10,17 @@ Pre-alpha. Two workspace packages exist:
 - **`packages/platform`** — `@gridline/platform`. Design tokens as CSS custom
   properties, and the event bus with its zod contracts. No UI primitives yet,
   and no React dependency.
-- **`apps/shell`** — `@gridline/shell`. An Rspack + React app that renders the
-  chrome from the tokens. Not yet a Module Federation host.
+- **`apps/shell`** — `@gridline/shell`. Rspack + React. Renders the chrome from
+  the tokens and is the Module Federation host. Loads the viewer's sheet surface
+  at runtime and shows active-sheet state published on the bus.
+- **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
+  `./SheetSurface` and also runs standalone on port 4101.
 
 `tools/` and `docs/` do not exist. The directory tree in `README.md` is partly
 planned, so verify a path exists before referencing it.
 
-Still to build: UI primitives in `platform`, Module Federation wiring between
-shell and a remote, runtime manifest resolution, MSW, and CI.
+Still to build: UI primitives in `platform`, runtime remote registration so the
+shell holds no remote addresses, MSW, the navigator and compare remotes, and CI.
 
 ## Commands
 
@@ -30,8 +33,9 @@ shell and a remote, runtime manifest resolution, MSW, and CI.
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 2 packages; `test` runs in `platform` only.
-`pnpm dev` serves the shell on port 4100.
+`build` and `typecheck` run in 3 packages; `test` runs in `platform` only.
+`pnpm dev` serves the shell on 4100 and the viewer on 4101. Each remote gets its
+own port, assigned in its `rspack.config.ts`.
 
 ## Monorepo conventions
 
@@ -112,6 +116,23 @@ These are not open to convenience:
   test below.
 - **A thing is an MFE only if it deploys on its own cadence under its own
   pipeline.** That test yields four. Not five, not six.
+- **A remote that is unreachable must never stop the shell rendering.** Every
+  remote slot handles its own load failure, so the failure stays inside that
+  slot. Verify it by stopping a remote's server and reloading the shell — the
+  chrome must still render. This is claim P5 and it is easy to break by
+  accident, because the shell keeps working while the remote is up.
+- **Never point a declared remote at `mf-manifest.json`.** The runtime fetches a
+  declared manifest during federation init, init gates the entry's async
+  boundary, and an unreachable remote then leaves the page empty before React
+  starts — with no error any boundary can catch. Declared remotes use a
+  `remoteEntry.js` entry, which resolves on first use. Manifests are for remotes
+  registered at runtime, after the shell has rendered.
+- **Shared modules must name subpaths explicitly.** `shared` matches the import
+  as written, so `react-dom` does not cover `react-dom/client`, and a package
+  does not cover its own subpaths. Use a trailing-slash prefix key. Getting this
+  wrong duplicates a dependency that was declared a singleton, and nothing
+  reports an error — for the bus it means two mailboxes and events that silently
+  never arrive.
 
 ## Non-goals
 
