@@ -53,8 +53,20 @@
   color: var(--text-primary);
 }
 
+.shell-sheet-revision {
+  font: var(--type-data-sm);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+}
+
 .shell-sheet-title {
   color: var(--text-secondary);
+}
+
+.shell-sheet-pending {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
 }
 
 .shell-canvas {
@@ -66,7 +78,7 @@
   background: var(--surface-canvas);
 }
 
-.shell-canvas-empty {
+.shell-canvas-message {
   margin: 0;
   color: var(--text-tertiary);
 }

@@ -5,5 +5,5 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "rspack.config.ts"]
+  "include": ["src", "rspack.config.ts", "module-federation.config.ts"]
 }

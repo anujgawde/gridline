@@ -3,6 +3,11 @@ dist/
 .turbo/
 *.tsbuildinfo
 
+# Module Federation writes remote .d.ts files here when dts is enabled. It is
+# disabled, but a stray one must never be committed: it is generated code, and
+# it makes a typecheck depend on a remote being reachable.
+@mf-types/
+
 .DS_Store
 *.local
 .env
