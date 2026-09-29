@@ -47,6 +47,25 @@ All of these currently run in 0 packages. That is expected, not a bug.
   declares `outputs: ["dist/**"]`. A `remoteEntry.js` emitted outside `dist/`
   will not survive a Turborepo cache restore.
 
+## Code layout
+
+One file, one job. A module's public surface and its implementation are
+separate files, so a reader can learn what a module offers without reading how
+it works.
+
+- **`types.ts`** holds the exported types and interfaces a module promises.
+- **The implementation file** holds the code satisfying them and exports no
+  types of its own.
+- **`index.ts`** is the module's only entry point and re-exports both. Nothing
+  outside a module imports its internals by path; the package `exports` map
+  names modules, never files inside them.
+- **Types derived from a runtime schema stay beside that schema.** A `z.infer`
+  separated from the object it infers from is a second source of truth, which
+  is the thing inference exists to prevent.
+
+The split is by role, not by line count. A module exporting one function and no
+types doesn't need a `types.ts`.
+
 ## Architecture rules
 
 These are not open to convenience:
