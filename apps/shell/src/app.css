@@ -1,0 +1,72 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.shell-topbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: var(--topbar-h);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  gap: var(--space-2);
+  background: var(--surface-chrome);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+  box-shadow: var(--shadow-chrome);
+  z-index: var(--z-chrome);
+}
+
+.shell-wordmark {
+  flex: 0 0 auto;
+  font: var(--type-data-sm);
+  letter-spacing: 0.08em;
+}
+
+.shell-separator {
+  flex: 0 0 auto;
+  width: var(--border-w);
+  height: var(--space-6);
+  margin: 0 var(--space-2);
+  background: var(--border-subtle);
+}
+
+.shell-set {
+  flex: 0 0 auto;
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+}
+
+.shell-sheet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.shell-sheet-number {
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.shell-sheet-title {
+  color: var(--text-secondary);
+}
+
+.shell-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--surface-canvas);
+}
+
+.shell-canvas-empty {
+  margin: 0;
+  color: var(--text-tertiary);
+}

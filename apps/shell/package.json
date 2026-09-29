@@ -1,0 +1,26 @@
+{
+  "name": "@gridline/shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "NODE_ENV=production rspack build",
+    "dev": "NODE_ENV=development rspack serve",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gridline/platform": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^2.2.8",
+    "@rspack/core": "^2.2.8",
+    "@rspack/dev-server": "^2.2.1",
+    "@rspack/plugin-react-refresh": "^2.0.2",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react-refresh": "^0.19.0"
+  }
+}

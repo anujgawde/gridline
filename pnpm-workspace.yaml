@@ -6,5 +6,10 @@ packages:
 # Shared versions live here so every package still declares the dependency
 # while the version is pinned in one place.
 catalog:
+  # react and react-dom must resolve to one instance across every app. Two
+  # copies of React in a page break hooks, and federation makes that easy to do
+  # by accident, so the version lives here and nowhere else.
+  react: ^19.3.0
+  react-dom: ^19.3.0
   tailwindcss: ^4.3.3
   zod: ^4.6.5
