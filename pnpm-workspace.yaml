@@ -2,3 +2,9 @@ packages:
   - "packages/*"
   - "apps/*"
   - "tools/*"
+
+# Shared versions live here so every package still declares the dependency
+# while the version is pinned in one place.
+catalog:
+  tailwindcss: ^4.3.3
+  zod: ^4.6.5
