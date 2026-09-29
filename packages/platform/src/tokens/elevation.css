@@ -11,6 +11,9 @@
   --z-toast:60; /* @kind other */
   --z-tooltip:70; /* @kind other */
 
+  /* Shadow geometry stays px throughout. The 0 0 0 1px rings are hairlines, and
+     an offset or blur is a depth cue rather than anything text-relative, so
+     none of it should scale with a reader's font-size preference. */
   --shadow-0:none;
   --shadow-chrome:0 1px 0 0 #00000059;
   --shadow-overlay:0 0 0 1px #00000073, 0 8px 20px -6px #000000A6;

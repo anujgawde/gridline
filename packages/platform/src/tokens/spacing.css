@@ -1,27 +1,49 @@
-/* Gridline Field — spacing, sizing, radii. 4px base. */
-:root{
-  --space-0:0px;   --space-hair:1px; --space-half:2px;
-  --space-1:4px;   --space-2:8px;   --space-3:12px;  --space-4:16px;
-  --space-5:20px;  --space-6:24px;  --space-7:32px;  --space-8:40px;
-  --space-9:48px;  --space-10:64px; --space-11:80px; --space-12:96px;
+/* Gridline Field — spacing, sizing, radii. 4px base (0.25rem at a 16px root).
 
-  /* control heights. --control-md is the default: 44px gloved-hand minimum. */
+   Units are split on one question: does the value size text and the space
+   around it, or does it guarantee a physical dimension?
+
+   Text-relative values are rem, so the UI scales with the browser's default
+   text size. Physical values stay px, and the largest group of those is the
+   touch targets: 44px is a gloved-hand minimum on a tablet, and a finger does
+   not get smaller because someone prefers smaller text. Expressing a minimum
+   target as rem lets a viewer setting shrink it below the ergonomic floor,
+   which inverts the reason it exists.
+
+   px equivalents are kept in comments so values stay checkable against the
+   design mockups. */
+:root{
+  /* spacing scale — text-relative, so rem. hair and half stay px: they are
+     hairline gaps that pair with --border-w, not proportional space. */
+  --space-0:0;     --space-hair:1px; --space-half:2px;
+  --space-1:0.25rem;  --space-2:0.5rem;   --space-3:0.75rem;  --space-4:1rem;    /* 4 8 12 16 */
+  --space-5:1.25rem;  --space-6:1.5rem;   --space-7:2rem;     --space-8:2.5rem;  /* 20 24 32 40 */
+  --space-9:3rem;     --space-10:4rem;    --space-11:5rem;    --space-12:6rem;   /* 48 64 80 96 */
+
+  /* control heights — PHYSICAL, stay px. --control-md is the default: 44px
+     gloved-hand minimum. Treat these as floors (min-height), so text that has
+     been scaled up can still grow a control past them. */
   --hit-min:44px;
   --control-sm:36px;   /* pointer-fine surfaces ONLY (desktop w/ mouse); never on tablet */
   --control-md:44px;   /* DEFAULT */
   --control-lg:52px;   /* primary canvas tools, gloved-first affordances */
   --icon-hit:44px;
-  --icon-16:16px; --icon-20:20px; --icon-24:24px;
+  --icon-16:16px; --icon-20:20px; --icon-24:24px;  /* named by px; sized to pair with the targets above */
 
-  /* structural widths */
-  --rail-w:56px;        /* icon rail */
-  --panel-w:320px;      /* sheet index / properties panel */
-  --panel-w-wide:400px;
-  --toolbar-h:52px;     /* canvas overlay toolbar */
-  --topbar-h:48px;      /* app chrome bar */
-  --row-h:44px;         /* list item */
+  /* structural widths. The bars stay px because their height is set by the
+     controls they contain, and those are physical. The panels hold text and
+     lists, so they scale with it. */
+  --rail-w:56px;         /* icon rail — sized by the 44px icon buttons in it */
+  --panel-w:20rem;       /* 320 — sheet index / properties panel */
+  --panel-w-wide:25rem;  /* 400 */
+  --toolbar-h:52px;      /* canvas overlay toolbar — matches --control-lg */
+  --topbar-h:48px;       /* app chrome bar */
+  --row-h:44px;          /* list item — a touch target */
   --row-h-dense:36px;
 
+  /* radii and line weights — px, deliberately. A 1px hairline that scales to
+     1.3px renders as a blurred two-pixel smear, and a 2px radius conveys the
+     same sharpness at any text size. Nothing here is text-relative. */
   /* radii — sharp. This is an instrument. */
   --radius-0:0px;
   --radius-1:2px;   /* default: controls, inputs, badges */

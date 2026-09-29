@@ -8,14 +8,24 @@
   --fw-semibold:600; /* @kind font */
   --fw-bold:700; /* @kind font */
 
-  /* size / line-height / tracking, step 1 (smallest) -> 7 */
-  --fs-1:11px; --lh-1:14px; --ls-1:0.06em; /* @kind font */   /* micro: uppercase meta, axis labels */
-  --fs-2:12px; --lh-2:16px; --ls-2:0.005em; /* @kind font */  /* dense: table cells, list meta */
-  --fs-3:13px; --lh-3:18px; --ls-3:0em; /* @kind font */      /* BODY: default UI text, controls */
-  --fs-4:15px; --lh-4:20px; --ls-4:-0.005em; /* @kind font */ /* emphasis: panel titles, list titles */
-  --fs-5:18px; --lh-5:24px; --ls-5:-0.01em; /* @kind font */  /* section head */
-  --fs-6:22px; --lh-6:28px; --ls-6:-0.015em; /* @kind font */ /* view title */
-  --fs-7:28px; --lh-7:34px; --ls-7:-0.02em; /* @kind font */  /* display: empty/error states only */
+  /* size / line-height / tracking, step 1 (smallest) -> 7.
+
+     Sizes are rem against the 16px root, so raising the browser's default text
+     size scales the whole UI. The design system states these in px; the px
+     equivalent is kept in the comment so a value can still be checked against
+     the mockups.
+
+     Line heights are unitless ratios rather than lengths. A ratio is resolved
+     against the element's own font-size, so a heading that overrides --fs-* to
+     something custom still gets proportional leading instead of the leading of
+     whichever step the ratio was authored for. */
+  --fs-1:0.6875rem; --lh-1:1.273; --ls-1:0.06em; /* @kind font */   /* 11/14 — micro: uppercase meta, axis labels */
+  --fs-2:0.75rem;   --lh-2:1.333; --ls-2:0.005em; /* @kind font */  /* 12/16 — dense: table cells, list meta */
+  --fs-3:0.8125rem; --lh-3:1.385; --ls-3:0em; /* @kind font */      /* 13/18 — BODY: default UI text, controls */
+  --fs-4:0.9375rem; --lh-4:1.333; --ls-4:-0.005em; /* @kind font */ /* 15/20 — emphasis: panel titles, list titles */
+  --fs-5:1.125rem;  --lh-5:1.333; --ls-5:-0.01em; /* @kind font */  /* 18/24 — section head */
+  --fs-6:1.375rem;  --lh-6:1.273; --ls-6:-0.015em; /* @kind font */ /* 22/28 — view title */
+  --fs-7:1.75rem;   --lh-7:1.214; --ls-7:-0.02em; /* @kind font */  /* 28/34 — display: empty/error states only */
 
   /* named roles */
   --type-micro:var(--fw-semibold) var(--fs-1)/var(--lh-1) var(--font-ui);

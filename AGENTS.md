@@ -73,6 +73,28 @@ it works.
 The split is by role, not by line count. A module exporting one function and no
 types doesn't need a `types.ts`.
 
+## Design tokens
+
+Apps never write a raw length. They reference tokens from
+`@gridline/platform/tokens.css`, so a value can be corrected in one place.
+
+Units in the token files split on one question: does the value size text and the
+space around it, or does it guarantee a physical dimension?
+
+- **Text-relative → `rem`.** The type scale, the spacing scale, and panel
+  widths, so the UI honours a raised browser text size.
+- **Line heights are unitless ratios**, resolved against the element's own
+  font size rather than the step they were authored for.
+- **Physical → `px`.** Touch targets are the large group here: 44px is a
+  gloved-hand minimum, and a finger does not shrink because someone prefers
+  smaller text, so a target expressed in `rem` can fall below its own floor.
+  Treat control heights as `min-height`, not `height`. Hairlines, border and
+  focus widths, radii, shadow geometry, and scrollbars are also `px` — a 1px
+  rule scaled to 1.3px renders as a blur.
+
+Token values carry their px equivalent in a comment, so any of them can still be
+checked against the design mockups.
+
 ## Architecture rules
 
 These are not open to convenience:
