@@ -1,0 +1,165 @@
+/* Gridline Field — colour. Dark chrome is the primary mode (:root).
+   Light mode is a first-class sunlight mode ([data-theme="light"]). */
+:root{
+  /* --- Dark chrome ramp: near-black -> mid-grey. 12 steps. --- */
+  --chrome-01:#08090B; --chrome-02:#0C0E10; --chrome-03:#101317; --chrome-04:#15181C;
+  --chrome-05:#1A1E23; --chrome-06:#20252A; --chrome-07:#272C33; --chrome-08:#2F353D;
+  --chrome-09:#383F48; --chrome-10:#434B55; --chrome-11:#525B66; --chrome-12:#626C78;
+
+  /* --- Light paper ramp: white -> mid-grey. 12 steps. --- */
+  --paper-01:#FFFFFF; --paper-02:#FAFBFC; --paper-03:#F4F6F8; --paper-04:#EDF0F2;
+  --paper-05:#E4E8EB; --paper-06:#D9DEE2; --paper-07:#CBD2D7; --paper-08:#B9C1C8;
+  --paper-09:#A3ACB4; --paper-10:#8B949D; --paper-11:#747D86; --paper-12:#5D666F;
+
+  /* --- Accent: signal blue. Active state, selection, focus. Never decorative. --- */
+  --blue-300:#A8CDFF; --blue-400:#6BB0FF; --blue-500:#3D8FF5;
+  --blue-600:#1F6FDC; --blue-700:#0F55B0; --blue-800:#0A3E82;
+
+  /* --- Supersede: RESERVED. Only ever the "this sheet has a newer revision" signal. --- */
+  --supersede-300:#FFD79A; --supersede-400:#FFB24D; --supersede-500:#FF8C1A;
+  --supersede-600:#C96A00; --supersede-700:#8F4B00;
+
+  /* --- Error --- */
+  --red-300:#FFB3AE; --red-400:#FF7B72; --red-500:#E5484D; --red-600:#C42A2F; --red-700:#8F1C21;
+  /* --- Success --- */
+  --green-300:#9BE9C4; --green-400:#4ED496; --green-500:#16A96B; --green-600:#0E7F50; --green-700:#095C39;
+  /* --- Offline / pending sync --- */
+  --sync-300:#D3C6FF; --sync-400:#B39DFF; --sync-500:#8B6EF0; --sync-600:#6A4BD6; --sync-700:#4C3499;
+
+  /* --- Drawing sheet: the hero. Identical in both modes; the paper never themes. --- */
+  --sheet-paper:#FFFFFF;
+  --sheet-ink:#101317;
+  --sheet-ink-soft:#5D666F;
+  --sheet-grid:#E4E8EB;
+  --sheet-void:#000000;      /* letterbox behind the sheet, dark mode */
+  --sheet-void-light:#6E7882;/* letterbox behind the sheet, light mode */
+}
+
+/* ============ SEMANTIC ALIASES — DARK CHROME (default) ============ */
+:root{
+  color-scheme:dark;
+
+  /* surfaces */
+  --surface-canvas:var(--chrome-01);       /* area the sheet sits in */
+  --surface-chrome:var(--chrome-03);       /* app frame, rails, toolbars */
+  --surface-chrome-raised:var(--chrome-04);
+  --surface-panel:var(--chrome-04);        /* floating side panels */
+  --surface-panel-header:var(--chrome-05);
+  --surface-overlay:var(--chrome-05);      /* canvas-overlay toolbars (opaque) */
+  --surface-modal:var(--chrome-06);
+  --surface-toast:var(--chrome-07);
+  --surface-input:var(--chrome-02);
+  --surface-sunken:var(--chrome-02);
+  --surface-hover:#FFFFFF0F;
+  --surface-active:#FFFFFF1A;
+  --surface-selected:#3D8FF524;
+  --surface-disabled:var(--chrome-04);
+  --scrim:#08090BCC;
+
+  /* text */
+  --text-primary:#F2F5F7;
+  --text-secondary:#B4BDC6;
+  --text-tertiary:#8A939D;
+  --text-disabled:#7B858F;
+  --text-inverse:#0D1114;
+  --text-accent:var(--blue-400);
+  --text-on-accent:#FFFFFF;
+  --text-supersede:var(--supersede-400);
+  --text-error:var(--red-400);
+  --text-success:var(--green-400);
+  --text-sync:var(--sync-400);
+
+  /* borders */
+  --border-hairline:#FFFFFF14;   /* internal dividers */
+  --border-subtle:#FFFFFF1F;     /* control outlines at rest */
+  --border-strong:#FFFFFF33;     /* hover, emphasised outlines */
+  --border-accent:var(--blue-500);
+  --border-supersede:var(--supersede-500);
+  --border-error:var(--red-500);
+
+  /* interactive fills */
+  --fill-accent:var(--blue-600);
+  --fill-accent-hover:var(--blue-500);
+  --fill-accent-active:var(--blue-700);
+  --fill-neutral:var(--chrome-07);
+  --fill-neutral-hover:var(--chrome-08);
+  --fill-neutral-active:var(--chrome-06);
+  --fill-supersede:var(--supersede-500);
+  --fill-error:var(--red-600);
+  --fill-success:var(--green-600);
+  --fill-sync:var(--sync-600);
+  --fill-track:var(--chrome-07);
+
+  /* status wash + border pairs for badges / banners */
+  --wash-accent:#3D8FF526;      --wash-accent-border:#3D8FF559;
+  --wash-supersede:#FF8C1A26;   --wash-supersede-border:#FF8C1A73;
+  --wash-error:#E5484D26;       --wash-error-border:#E5484D59;
+  --wash-success:#16A96B26;     --wash-success-border:#16A96B59;
+  --wash-sync:#8B6EF026;        --wash-sync-border:#8B6EF059;
+
+  --focus-ring:var(--blue-400);
+  --focus-ring-offset:var(--chrome-01);
+  --markup-default:var(--red-500);
+}
+
+/* ============ SEMANTIC ALIASES — LIGHT / SUNLIGHT MODE ============ */
+[data-theme="light"]{
+  color-scheme:light;
+
+  --surface-canvas:var(--paper-07);
+  --surface-chrome:var(--paper-02);
+  --surface-chrome-raised:var(--paper-01);
+  --surface-panel:var(--paper-01);
+  --surface-panel-header:var(--paper-03);
+  --surface-overlay:var(--paper-01);
+  --surface-modal:var(--paper-01);
+  --surface-toast:var(--paper-01);
+  --surface-input:var(--paper-01);
+  --surface-sunken:var(--paper-04);
+  --surface-hover:#0813200F;
+  --surface-active:#0813201A;
+  --surface-selected:#0F55B01F;
+  --surface-disabled:var(--paper-03);
+  --scrim:#31383ECC;
+
+  --text-primary:#0D1114;
+  --text-secondary:#414A52;
+  --text-tertiary:#5D666F;
+  --text-disabled:#68727A;
+  --text-inverse:#FFFFFF;
+  --text-accent:var(--blue-700);
+  --text-on-accent:#FFFFFF;
+  --text-supersede:var(--supersede-700);
+  --text-error:var(--red-700);
+  --text-success:var(--green-700);
+  --text-sync:var(--sync-700);
+
+  --border-hairline:#08132014;
+  --border-subtle:#0813202E;
+  --border-strong:#08132052;
+  --border-accent:var(--blue-700);
+  --border-supersede:var(--supersede-600);
+  --border-error:var(--red-600);
+
+  --fill-accent:var(--blue-700);
+  --fill-accent-hover:var(--blue-600);
+  --fill-accent-active:var(--blue-800);
+  --fill-neutral:var(--paper-04);
+  --fill-neutral-hover:var(--paper-05);
+  --fill-neutral-active:var(--paper-06);
+  --fill-supersede:var(--supersede-500);
+  --fill-error:var(--red-600);
+  --fill-success:var(--green-600);
+  --fill-sync:var(--sync-600);
+  --fill-track:var(--paper-06);
+
+  --wash-accent:#0F55B014;      --wash-accent-border:#0F55B066;
+  --wash-supersede:#FF8C1A2E;   --wash-supersede-border:#C96A00;
+  --wash-error:#E5484D1F;       --wash-error-border:#C42A2F80;
+  --wash-success:#16A96B1F;     --wash-success-border:#0E7F5080;
+  --wash-sync:#8B6EF01F;        --wash-sync-border:#6A4BD680;
+
+  --focus-ring:var(--blue-700);
+  --focus-ring-offset:var(--paper-01);
+  --markup-default:var(--red-600);
+}

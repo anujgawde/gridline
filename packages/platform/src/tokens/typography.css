@@ -1,0 +1,40 @@
+/* Gridline Field — type. Dense, 7-step scale. Base UI step is --type-body (13px). */
+:root{
+  --font-ui:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+  --fw-regular:400; /* @kind font */
+  --fw-medium:500; /* @kind font */
+  --fw-semibold:600; /* @kind font */
+  --fw-bold:700; /* @kind font */
+
+  /* size / line-height / tracking, step 1 (smallest) -> 7 */
+  --fs-1:11px; --lh-1:14px; --ls-1:0.06em; /* @kind font */   /* micro: uppercase meta, axis labels */
+  --fs-2:12px; --lh-2:16px; --ls-2:0.005em; /* @kind font */  /* dense: table cells, list meta */
+  --fs-3:13px; --lh-3:18px; --ls-3:0em; /* @kind font */      /* BODY: default UI text, controls */
+  --fs-4:15px; --lh-4:20px; --ls-4:-0.005em; /* @kind font */ /* emphasis: panel titles, list titles */
+  --fs-5:18px; --lh-5:24px; --ls-5:-0.01em; /* @kind font */  /* section head */
+  --fs-6:22px; --lh-6:28px; --ls-6:-0.015em; /* @kind font */ /* view title */
+  --fs-7:28px; --lh-7:34px; --ls-7:-0.02em; /* @kind font */  /* display: empty/error states only */
+
+  /* named roles */
+  --type-micro:var(--fw-semibold) var(--fs-1)/var(--lh-1) var(--font-ui);
+  --type-caption:var(--fw-regular) var(--fs-2)/var(--lh-2) var(--font-ui);
+  --type-body:var(--fw-regular) var(--fs-3)/var(--lh-3) var(--font-ui);
+  --type-body-strong:var(--fw-medium) var(--fs-3)/var(--lh-3) var(--font-ui);
+  --type-control:var(--fw-medium) var(--fs-3)/var(--lh-3) var(--font-ui);
+  --type-title:var(--fw-semibold) var(--fs-4)/var(--lh-4) var(--font-ui);
+  --type-section:var(--fw-semibold) var(--fs-5)/var(--lh-5) var(--font-ui);
+  --type-view:var(--fw-semibold) var(--fs-6)/var(--lh-6) var(--font-ui);
+  --type-display:var(--fw-semibold) var(--fs-7)/var(--lh-7) var(--font-ui);
+
+  /* data roles — sheet numbers, revisions, measurements. Always tabular. */
+  --type-data:var(--fw-medium) var(--fs-3)/var(--lh-3) var(--font-data);
+  --type-data-sm:var(--fw-medium) var(--fs-2)/var(--lh-2) var(--font-data);
+  --type-data-lg:var(--fw-semibold) var(--fs-5)/var(--lh-5) var(--font-data);
+  --numeric-tabular:tabular-nums slashed-zero; /* @kind other */
+}
+
+/* Utility: any element carrying digits that get compared vertically. */
+.gf-data{font:var(--type-data);font-variant-numeric:var(--numeric-tabular);letter-spacing:0.01em}
+.gf-micro{font:var(--type-micro);letter-spacing:var(--ls-1);text-transform:uppercase}

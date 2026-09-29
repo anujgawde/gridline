@@ -1,0 +1,36 @@
+/* Gridline Field — spacing, sizing, radii. 4px base. */
+:root{
+  --space-0:0px;   --space-hair:1px; --space-half:2px;
+  --space-1:4px;   --space-2:8px;   --space-3:12px;  --space-4:16px;
+  --space-5:20px;  --space-6:24px;  --space-7:32px;  --space-8:40px;
+  --space-9:48px;  --space-10:64px; --space-11:80px; --space-12:96px;
+
+  /* control heights. --control-md is the default: 44px gloved-hand minimum. */
+  --hit-min:44px;
+  --control-sm:36px;   /* pointer-fine surfaces ONLY (desktop w/ mouse); never on tablet */
+  --control-md:44px;   /* DEFAULT */
+  --control-lg:52px;   /* primary canvas tools, gloved-first affordances */
+  --icon-hit:44px;
+  --icon-16:16px; --icon-20:20px; --icon-24:24px;
+
+  /* structural widths */
+  --rail-w:56px;        /* icon rail */
+  --panel-w:320px;      /* sheet index / properties panel */
+  --panel-w-wide:400px;
+  --toolbar-h:52px;     /* canvas overlay toolbar */
+  --topbar-h:48px;      /* app chrome bar */
+  --row-h:44px;         /* list item */
+  --row-h-dense:36px;
+
+  /* radii — sharp. This is an instrument. */
+  --radius-0:0px;
+  --radius-1:2px;   /* default: controls, inputs, badges */
+  --radius-2:3px;   /* panels, overlays */
+  --radius-3:4px;   /* modals — the largest radius in the system */
+  --radius-pill:999px; /* progress track + spinner only */
+
+  --border-w:1px;
+  --border-w-emphasis:2px;
+  --focus-w:2px;
+  --focus-offset:1px;
+}

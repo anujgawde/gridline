@@ -1,0 +1,11 @@
+/* Gridline Field — webfonts.
+   SUBSTITUTION NOTE: no brand font binaries were supplied. IBM Plex Sans / IBM Plex Mono
+   are used as the nearest technical-instrument match (neutral grotesk with true tabular
+   figures and a slashed zero). Served from Google Fonts; swap the @import for local
+   @font-face rules when real binaries arrive. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+:root{
+  --font-ui:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}

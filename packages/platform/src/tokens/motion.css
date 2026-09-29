@@ -1,0 +1,20 @@
+/* Gridline Field — motion. Functional only: state feedback and spatial continuity.
+   Nothing bounces. Nothing eases in slowly. No entrance animation on content. */
+:root{
+  --dur-instant:80ms; /* @kind other */
+  --dur-fast:120ms; /* @kind other */
+  --dur-base:160ms; /* @kind other */
+  --dur-slow:240ms; /* @kind other */
+  --ease-out:cubic-bezier(.2,.7,.35,1); /* @kind other */
+  --ease-inout:cubic-bezier(.4,0,.2,1); /* @kind other */
+  --ease-exit:cubic-bezier(.4,0,1,1); /* @kind other */
+  --transition-control:background-color var(--dur-instant) var(--ease-out),border-color var(--dur-instant) var(--ease-out),color var(--dur-instant) var(--ease-out); /* @kind other */
+}
+@media (prefers-reduced-motion:reduce){
+  :root{
+    --dur-instant:0ms; /* @kind other */
+    --dur-fast:0ms; /* @kind other */
+    --dur-base:0ms; /* @kind other */
+    --dur-slow:0ms; /* @kind other */
+  }
+}

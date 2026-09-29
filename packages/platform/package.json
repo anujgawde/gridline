@@ -1,0 +1,28 @@
+{
+  "name": "@gridline/platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./bus": {
+      "types": "./dist/bus/index.d.ts",
+      "default": "./dist/bus/index.js"
+    },
+    "./tokens.css": "./dist/tokens/index.css",
+    "./theme.css": "./dist/tokens/theme.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && mkdir -p dist/tokens && cp src/tokens/*.css dist/tokens/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "tailwindcss": "catalog:"
+  }
+}

@@ -1,0 +1,15 @@
+/* Gridline design tokens — single entry point.
+   base.css comes last because it consumes the aliases the others define.
+
+   fonts.css is deliberately NOT imported here. Its only unique content is an
+   @import of the Google Fonts stylesheet, and a bundler relocates that past the
+   rules above it, where the browser ignores it — the webfont silently never
+   loads. Apps load it with a <link> in their HTML instead; fonts.css is kept as
+   the record of which families and weights to request. The --font-ui and
+   --font-data declarations it also carries are already in typography.css. */
+@import "./colors.css";
+@import "./typography.css";
+@import "./spacing.css";
+@import "./elevation.css";
+@import "./motion.css";
+@import "./base.css";

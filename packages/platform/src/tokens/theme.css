@@ -1,0 +1,145 @@
+/* Tailwind theme layer for the Gridline tokens.
+   `inline` is required: it makes utilities emit var(--surface-chrome) rather than
+   resolving to a hex at build time, so [data-theme="light"] still switches at
+   runtime and a token change does not force every remote to rebuild. */
+@theme inline {
+  /* Text colours map to --color-fg-* rather than --color-text-*, because
+     Tailwind's --text-* namespace is font-size; --text-primary there would
+     register a font size named "primary". */
+
+  /* surfaces */
+  --color-surface-canvas: var(--surface-canvas);
+  --color-surface-chrome: var(--surface-chrome);
+  --color-surface-chrome-raised: var(--surface-chrome-raised);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-panel-header: var(--surface-panel-header);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-modal: var(--surface-modal);
+  --color-surface-toast: var(--surface-toast);
+  --color-surface-input: var(--surface-input);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-surface-selected: var(--surface-selected);
+  --color-surface-disabled: var(--surface-disabled);
+  --color-scrim: var(--scrim);
+
+  /* foreground */
+  --color-fg-primary: var(--text-primary);
+  --color-fg-secondary: var(--text-secondary);
+  --color-fg-tertiary: var(--text-tertiary);
+  --color-fg-disabled: var(--text-disabled);
+  --color-fg-inverse: var(--text-inverse);
+  --color-fg-accent: var(--text-accent);
+  --color-fg-on-accent: var(--text-on-accent);
+  --color-fg-supersede: var(--text-supersede);
+  --color-fg-error: var(--text-error);
+  --color-fg-success: var(--text-success);
+  --color-fg-sync: var(--text-sync);
+
+  /* borders */
+  --color-border-hairline: var(--border-hairline);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-border-accent: var(--border-accent);
+  --color-border-supersede: var(--border-supersede);
+  --color-border-error: var(--border-error);
+
+  /* interactive fills */
+  --color-fill-accent: var(--fill-accent);
+  --color-fill-accent-hover: var(--fill-accent-hover);
+  --color-fill-accent-active: var(--fill-accent-active);
+  --color-fill-neutral: var(--fill-neutral);
+  --color-fill-neutral-hover: var(--fill-neutral-hover);
+  --color-fill-neutral-active: var(--fill-neutral-active);
+  --color-fill-supersede: var(--fill-supersede);
+  --color-fill-error: var(--fill-error);
+  --color-fill-success: var(--fill-success);
+  --color-fill-sync: var(--fill-sync);
+  --color-fill-track: var(--fill-track);
+
+  /* status washes */
+  --color-wash-accent: var(--wash-accent);
+  --color-wash-accent-border: var(--wash-accent-border);
+  --color-wash-supersede: var(--wash-supersede);
+  --color-wash-supersede-border: var(--wash-supersede-border);
+  --color-wash-error: var(--wash-error);
+  --color-wash-error-border: var(--wash-error-border);
+  --color-wash-success: var(--wash-success);
+  --color-wash-success-border: var(--wash-success-border);
+  --color-wash-sync: var(--wash-sync);
+  --color-wash-sync-border: var(--wash-sync-border);
+
+  /* the sheet — never themes */
+  --color-sheet-paper: var(--sheet-paper);
+  --color-sheet-ink: var(--sheet-ink);
+  --color-sheet-ink-soft: var(--sheet-ink-soft);
+  --color-sheet-grid: var(--sheet-grid);
+  --color-sheet-void: var(--sheet-void);
+  --color-sheet-void-light: var(--sheet-void-light);
+
+  --color-focus-ring: var(--focus-ring);
+  --color-markup-default: var(--markup-default);
+
+  /* A theme key must never share a name with the token it points at: Tailwind
+     emits the key into :root, so --radius-1: var(--radius-1) is a CSS cycle and
+     resolves to nothing. Hence --font-sans over --font-ui, --radius-sm over
+     --radius-1, --shadow-elev-* over --shadow-*. Colours are safe because
+     --color-surface-chrome already differs from --surface-chrome. */
+
+  /* families — mapping onto Tailwind's own keys also corrects the default
+     font-family that preflight applies to html. */
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-data);
+
+  /* The scale is non-linear above step 6 (32/40/48/64/80/96), so Tailwind's
+     multiplier cannot express it. `initial` drops the multiplier and forces
+     every spacing utility to come from a named token. */
+  --spacing: initial;
+  --spacing-0: var(--space-0);
+  --spacing-hair: var(--space-hair);
+  --spacing-half: var(--space-half);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-9: var(--space-9);
+  --spacing-10: var(--space-10);
+  --spacing-11: var(--space-11);
+  --spacing-12: var(--space-12);
+
+  /* structural sizes, so w-panel / h-topbar stay token-driven */
+  --spacing-hit-min: var(--hit-min);
+  --spacing-control-sm: var(--control-sm);
+  --spacing-control-md: var(--control-md);
+  --spacing-control-lg: var(--control-lg);
+  --spacing-icon-hit: var(--icon-hit);
+  --spacing-icon-16: var(--icon-16);
+  --spacing-icon-20: var(--icon-20);
+  --spacing-icon-24: var(--icon-24);
+  --spacing-rail: var(--rail-w);
+  --spacing-panel: var(--panel-w);
+  --spacing-panel-wide: var(--panel-w-wide);
+  --spacing-toolbar: var(--toolbar-h);
+  --spacing-topbar: var(--topbar-h);
+  --spacing-row: var(--row-h);
+  --spacing-row-dense: var(--row-h-dense);
+
+  /* radii — sharp by design; 4px is the largest in the system.
+     rounded-none and rounded-full already cover --radius-0 and --radius-pill. */
+  --radius-sm: var(--radius-1);
+  --radius-md: var(--radius-2);
+  --radius-lg: var(--radius-3);
+
+  /* elevation — five tiers; shadow-none already covers --shadow-0 */
+  --shadow-elev-chrome: var(--shadow-chrome);
+  --shadow-elev-overlay: var(--shadow-overlay);
+  --shadow-elev-panel: var(--shadow-panel);
+  --shadow-elev-modal: var(--shadow-modal);
+  --shadow-elev-toast: var(--shadow-toast);
+  --inset-shadow-input: var(--shadow-inset-input);
+}

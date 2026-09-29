@@ -1,0 +1,31 @@
+/* Gridline Field — layering. Five tiers. Shadows are neutral-black only, never coloured.
+   Canvas-overlay tier rule: overlays that float over the drawing are ALWAYS opaque fills
+   with a hairline border AND a dark ring, so they read against white paper and black linework
+   alike. Never translucent, never blurred, over the sheet. */
+:root{
+  --z-base:0; /* @kind other */              /* the drawing sheet */
+  --z-chrome:10; /* @kind other */           /* topbar, rails — docked app frame */
+  --z-canvas-overlay:20; /* @kind other */   /* toolbars, page pips, zoom readout floating on the sheet */
+  --z-panel:30; /* @kind other */            /* floating/resizable side panels, popovers */
+  --z-modal:50; /* @kind other */            /* dialogs + their scrim */
+  --z-toast:60; /* @kind other */
+  --z-tooltip:70; /* @kind other */
+
+  --shadow-0:none;
+  --shadow-chrome:0 1px 0 0 #00000059;
+  --shadow-overlay:0 0 0 1px #00000073, 0 8px 20px -6px #000000A6;
+  --shadow-panel:0 0 0 1px #00000059, 0 12px 28px -8px #000000B3;
+  --shadow-modal:0 0 0 1px #00000073, 0 28px 64px -12px #000000CC;
+  --shadow-toast:0 0 0 1px #00000073, 0 14px 32px -10px #000000B3;
+  --shadow-inset-input:inset 0 1px 0 0 #00000040;
+
+  /* Light mode: less black, tighter spread — shadows must not look grey-dirty in sunlight. */
+}
+[data-theme="light"]{
+  --shadow-chrome:0 1px 0 0 #0813201A;
+  --shadow-overlay:0 0 0 1px #08132029, 0 6px 16px -6px #08132052;
+  --shadow-panel:0 0 0 1px #08132024, 0 10px 24px -8px #08132047;
+  --shadow-modal:0 0 0 1px #0813202E, 0 24px 56px -12px #0813205C;
+  --shadow-toast:0 0 0 1px #0813202E, 0 12px 28px -10px #08132052;
+  --shadow-inset-input:inset 0 1px 0 0 #0813200F;
+}
