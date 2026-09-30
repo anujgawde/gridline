@@ -31,8 +31,17 @@ interface ActiveSheet {
   revision: number;
 }
 
+/* Which sheet the shell asks for, read from `?sheet=`. The set is generated, so
+   any sheet number in it is reachable — useful for checking a measurement is not
+   an artefact of one particular sheet. Navigator will replace this. */
+function requestedSheet() {
+  const value = new URLSearchParams(window.location.search).get("sheet");
+  return value && /^[A-Z]{1,2}-\d{3}$/.test(value) ? value : "A-101";
+}
+
 export function App() {
   const [sheet, setSheet] = useState<ActiveSheet | null>(null);
+  const [sheetId] = useState(requestedSheet);
 
   useEffect(
     () =>
@@ -76,7 +85,7 @@ export function App() {
           <Suspense
             fallback={<p className="shell-canvas-message">Loading viewer…</p>}
           >
-            <SheetSurface sheetId="A-101" revision={4} />
+            <SheetSurface sheetId={sheetId} revision={4} />
           </Suspense>
         </RemoteBoundary>
       </main>
