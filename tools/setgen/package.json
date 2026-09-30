@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "serve": "node ../../tools/serve.mjs --dir ../../data/sets/v1 --port 4200 --cors",
+    "serve": "node ../../tools/serve.mjs --dir ../../data/sets/v1 --port 4200 --cors --throttle",
     "test": "vitest run"
   },
   "dependencies": {

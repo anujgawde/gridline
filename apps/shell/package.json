@@ -6,7 +6,7 @@
   "scripts": {
     "build": "NODE_ENV=production rspack build",
     "dev": "NODE_ENV=development rspack serve",
-    "serve": "node ../../tools/serve.mjs --dir dist --port 4100",
+    "serve": "node ../../tools/serve.mjs --dir dist --port 4100 --throttle",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

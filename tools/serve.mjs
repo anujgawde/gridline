@@ -20,6 +20,7 @@ const { values } = parseArgs({
     dir: { type: "string" },
     port: { type: "string" },
     cors: { type: "boolean", default: false },
+    throttle: { type: "boolean", default: false },
   },
 });
 
@@ -72,6 +73,37 @@ const COMPRESSIBLE = /^(text\/|application\/(javascript|json)|image\/svg\+xml)/;
 //
 // Pre-compressed .br/.gz files on disk are the other half of how this works in
 // production, but they are a build concern; what a host does for you is this.
+/* Chrome DevTools' "Fast 3G" preset, in bytes per second and milliseconds.
+   Applied here rather than in the browser because CDP throttles per target and a
+   service worker is its own target — anything MSW fetches escapes a throttle set
+   on the page, silently. Pacing the server catches every requester. */
+const FAST_3G = { bytesPerSecond: (1.6 * 1024 * 1024) / 8, latencyMs: 562.5 };
+
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+
+/* Writes a body at a fixed rate after an initial round trip. Deliberately crude:
+   a fixed delay per chunk rather than a congestion model. What matters is that
+   it is uniform, visible in this file, and cannot be bypassed by a worker. */
+async function writePaced(res, stream) {
+  await sleep(FAST_3G.latencyMs);
+  const chunkMs = 40;
+  const chunkBytes = Math.max(1, Math.round((FAST_3G.bytesPerSecond * chunkMs) / 1000));
+
+  let buffer = Buffer.alloc(0);
+  for await (const piece of stream) {
+    buffer = Buffer.concat([buffer, piece]);
+    while (buffer.length >= chunkBytes) {
+      if (!res.write(buffer.subarray(0, chunkBytes))) {
+        await new Promise((done) => res.once("drain", done));
+      }
+      buffer = buffer.subarray(chunkBytes);
+      await sleep(chunkMs);
+    }
+  }
+  if (buffer.length) res.write(buffer);
+  res.end();
+}
+
 function negotiate(acceptEncoding = "", contentType) {
   if (!COMPRESSIBLE.test(contentType)) return null;
   const accepted = acceptEncoding.toLowerCase();
@@ -108,6 +140,15 @@ const server = createServer(async (req, res) => {
   // blanket-enabling it and forgetting which side needed it.
   if (values.cors) headers["Access-Control-Allow-Origin"] = "*";
 
+  // Stated on every response so a measurement can assert it was throttled
+  // rather than assume it.
+  if (values.throttle) {
+    headers["X-Gridline-Throttle"] = "fast-3g";
+    if (values.cors) {
+      headers["Access-Control-Expose-Headers"] = "X-Gridline-Throttle";
+    }
+  }
+
   const file = await resolveFile(req.url ?? "/");
 
   if (!file) {
@@ -130,19 +171,21 @@ const server = createServer(async (req, res) => {
   // that asked for none.
   headers["Vary"] = "Accept-Encoding";
 
-  if (!encoding) {
-    res.writeHead(200, headers);
-    createReadStream(file).pipe(res);
-    return;
-  }
-
-  headers["Content-Encoding"] = encoding.encoding;
+  if (encoding) headers["Content-Encoding"] = encoding.encoding;
   res.writeHead(200, headers);
 
+  const body = encoding
+    ? createReadStream(file).pipe(encoding.create())
+    : createReadStream(file);
+
   try {
-    await pipeline(createReadStream(file), encoding.create(), res);
+    if (values.throttle) {
+      await writePaced(res, body);
+    } else {
+      await pipeline(body, res);
+    }
   } catch {
-    // A client that navigated away mid-response aborts the pipeline. Nothing to
+    // A client that navigated away mid-response aborts the stream. Nothing to
     // report: the socket is already gone.
     res.destroy();
   }
@@ -162,5 +205,8 @@ server.on("error", (error) => {
 
 server.listen(port, () => {
   const origin = `http://localhost:${port}`;
-  console.log(`serving ${root} on ${origin}${values.cors ? " (cors: *)" : ""}`);
+  const notes = [values.cors && "cors: *", values.throttle && "throttled: fast-3g"]
+    .filter(Boolean)
+    .join(", ");
+  console.log(`serving ${root} on ${origin}${notes ? ` (${notes})` : ""}`);
 });
