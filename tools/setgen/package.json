@@ -1,0 +1,13 @@
+{
+  "name": "@gridline/setgen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node ../../tools/serve.mjs --dir ../../data/sets/v1 --port 4200 --cors",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}
