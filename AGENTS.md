@@ -32,6 +32,7 @@ deploy-without-rebuilding-the-shell recording, the navigator and compare remotes
 | `pnpm install` | Install; creates workspace symlinks |
 | `pnpm build` | `turbo run build` across packages |
 | `pnpm dev` | All dev servers, persistent |
+| `pnpm serve` | Serve each app's built `dist/` as a static host would |
 | `pnpm test` | Vitest per package |
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
@@ -39,6 +40,12 @@ deploy-without-rebuilding-the-shell recording, the navigator and compare remotes
 `build` and `typecheck` run in 3 packages; `test` runs in `platform` only.
 `pnpm dev` serves the shell on 4100 and the viewer on 4101. Each remote gets its
 own port, assigned in its `rspack.config.ts`.
+
+`pnpm serve` runs `tools/serve.mjs` against each app's `dist/` on those same
+ports, so the remote lookup needs no second copy — the cost is that `dev` and
+`serve` cannot run at once. It requires a build first and deliberately never
+triggers one, so nothing rebuilds while a claim about the built bytes is being
+checked.
 
 ## Monorepo conventions
 
@@ -134,6 +141,15 @@ These are not open to convenience:
   test below.
 - **A thing is an MFE only if it deploys on its own cadence under its own
   pipeline.** That test yields four. Not five, not six.
+- **Federation claims are verified against a static server, never the dev
+  server.** A dev server is a build tool that also answers HTTP: it rebuilds,
+  injects hot-reload code, and applies headers configured under `devServer`, none
+  of which exist in a deployed build. The viewer's
+  `Access-Control-Allow-Origin` lives there, so cross-origin loading passes under
+  `pnpm dev` and fails when deployed, with nothing in the build reporting it. Run
+  `pnpm build && pnpm serve` before believing any result. The server stays
+  dependency-free on purpose — a server framework restores the conveniences a
+  static host would not provide, which is the thing being tested for.
 - **A remote that is unreachable must never stop the shell rendering.** Every
   remote slot handles its own load failure, so the failure stays inside that
   slot. Verify it by stopping a remote's server and reloading the shell — the
