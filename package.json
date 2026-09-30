@@ -7,11 +7,14 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "perf": "playwright test",
     "serve": "turbo run serve",
+    "setgen": "node tools/setgen/setgen.mjs",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0",
     "vitest": "^5.0.2"

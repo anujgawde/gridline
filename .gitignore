@@ -13,6 +13,15 @@ dist/
 .env
 .env.*
 
+# Generated drawing sets and tile pyramids. Reproduced from a seed by
+# `pnpm setgen`, so the bytes do not belong in git; the committed manifest
+# carries a checksum per sheet so a regenerated set can be verified against it.
+data/
+
+# Playwright output. Readings are transcribed into docs/perf/ by hand.
+test-results/
+playwright-report/
+
 coverage/
 *.log
 extras
