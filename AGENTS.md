@@ -22,8 +22,11 @@ registers remotes at runtime, so the build contains no remote URL.
 `tools/` and `docs/` do not exist. The directory tree in `README.md` is partly
 planned, so verify a path exists before referencing it.
 
-Still to build: UI primitives in `platform`, a pipeline per app, the
-deploy-without-rebuilding-the-shell recording, the navigator and compare remotes.
+Independent deployment is demonstrated rather than claimed: the measured
+checksums are in `README.md`, and the procedure re-runs in about a minute.
+
+Still to build: UI primitives in `platform`, a pipeline per app, the navigator
+and compare remotes.
 
 ## Commands
 
