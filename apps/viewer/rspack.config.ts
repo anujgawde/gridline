@@ -57,6 +57,12 @@ export default defineConfig({
   plugins: [
     new ModuleFederationPlugin(mfConfig),
     new rspack.HtmlRspackPlugin({ template: "./src/index.html" }),
+    // Standalone, this app serves its own sheet-source lookup. Federated into
+    // the shell, the relative fetch resolves against the shell's origin and the
+    // shell's copy answers instead — neither is compiled into a bundle.
+    new rspack.CopyRspackPlugin({
+      patterns: [{ from: "public", to: "." }],
+    }),
     isDev && new ReactRefreshRspackPlugin(),
   ],
   devServer: {

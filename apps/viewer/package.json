@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@gridline/platform": "workspace:*",
+    "pdfjs-dist": "^6.3.289",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@module-federation/enhanced": "^2.9.2",

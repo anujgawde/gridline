@@ -4,27 +4,35 @@
   justify-content: center;
   width: 100%;
   height: 100%;
+  padding: var(--space-4);
   background: var(--surface-canvas);
 }
 
-.viewer-sheet {
+.viewer-render {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-7);
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* The canvas is rasterized at sheet resolution and displayed at whatever fits.
+   Its intrinsic size is set in device pixels by the renderer; these rules only
+   decide how much of the viewport it is shown in. */
+.viewer-canvas {
+  max-width: 100%;
+  max-height: 100%;
   background: var(--surface-chrome);
   border: var(--border-w) solid var(--border-subtle);
-  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-panel);
 }
 
-.viewer-sheet-id {
-  font: var(--type-data-lg);
-  font-variant-numeric: var(--numeric-tabular);
-  color: var(--text-primary);
+.viewer-render[data-state="loading"] .viewer-canvas,
+.viewer-render[data-state="failed"] .viewer-canvas {
+  display: none;
 }
 
-.viewer-sheet-note {
+.viewer-render-message {
   font: var(--type-caption);
   color: var(--text-tertiary);
 }
