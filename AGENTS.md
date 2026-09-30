@@ -16,11 +16,14 @@ Pre-alpha. Two workspace packages exist:
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
 
+The shell holds no remote addresses. It reads `public/remotes.json` at startup and
+registers remotes at runtime, so the build contains no remote URL.
+
 `tools/` and `docs/` do not exist. The directory tree in `README.md` is partly
 planned, so verify a path exists before referencing it.
 
-Still to build: UI primitives in `platform`, runtime remote registration so the
-shell holds no remote addresses, MSW, the navigator and compare remotes, and CI.
+Still to build: UI primitives in `platform`, a pipeline per app, the
+deploy-without-rebuilding-the-shell recording, the navigator and compare remotes.
 
 ## Commands
 
@@ -111,6 +114,21 @@ These are not open to convenience:
 - **There is no backend.** No API server, no database, no BFF. Every network
   interaction is Mock Service Worker in the browser. If a task doesn't run in
   a browser, question whether it belongs in this repo.
+- **MSW runs in production, not only in development.** This inverts MSW's own
+  guidance and will read as a mistake to anyone who knows the library. It is
+  correct here: MSW is not standing in for a server that exists elsewhere, it *is*
+  the network layer, so gating it to development would leave the production build
+  with no network at all. Do not "fix" it by adding an environment check.
+- **Nothing may block the first render indefinitely.** Startup work — the mock
+  network, the remote lookup — is bounded and allowed to fail. A service worker
+  registration that never settles has to be timed out, not awaited, or a browser
+  that refuses service workers gets a blank page. Same rule as an unreachable
+  remote: degrade, never hang.
+- **Deployment data belongs in files, not in bundles.** The remote lookup is a
+  static JSON file on the shell's origin, so a remote's address can change without
+  the shell being rebuilt. Generating it from application code — an MSW handler,
+  say — puts the addresses back inside the bundle and quietly restores the
+  coupling. Validate it on read like any other network payload.
 - **Markup is a module inside `viewer`**, not a fifth MFE. It ships on
   viewer's cadence and has no pipeline of its own, so it fails the boundary
   test below.
