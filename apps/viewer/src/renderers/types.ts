@@ -1,7 +1,7 @@
 /* Named for what they do, not for how good they are. Both stay in the app
    permanently, so the comparison between them is a URL anyone can open rather
    than a commit anyone has to check out. */
-export type RendererName = "fullpage";
+export type RendererName = "fullpage" | "tiled";
 
 export interface Viewport {
   x: number;

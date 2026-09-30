@@ -32,6 +32,17 @@
 
 .viewer-canvas {
   display: block;
+}
+
+/* The tiled renderer draws into a canvas that covers the whole surface and
+   clears what the sheet does not cover, so the shadow belongs to the tiles
+   rather than to the element. */
+.viewer-render[data-renderer="tiled"] .viewer-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.viewer-render[data-renderer="fullpage"] .viewer-canvas {
   background: var(--surface-chrome);
   box-shadow: var(--shadow-panel);
 }

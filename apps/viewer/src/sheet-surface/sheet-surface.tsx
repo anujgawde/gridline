@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { bus } from "@gridline/platform/bus";
 
-import { FullPageRenderer, selectRenderer } from "../renderers";
+import { FullPageRenderer, selectRenderer, TiledRenderer } from "../renderers";
 import { loadSheetIndex, loadSheetSource } from "../sources";
 import type { SheetIndexEntry, SheetSource } from "../sources";
 import type { SheetSurfaceProps } from "./types";
@@ -79,7 +79,13 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
 
   return (
     <div className="viewer-surface">
-      {renderer === "fullpage" && (
+      {renderer === "tiled" ? (
+        <TiledRenderer
+          sheetId={current}
+          source={ready.source}
+          onPainted={announce}
+        />
+      ) : (
         <FullPageRenderer
           sheetId={current}
           source={ready.source}
