@@ -88,18 +88,34 @@ gridline/
 │  └─ compare/           # Revision diff remote (planned)
 ├─ tools/
 │  ├─ serve.mjs          # Static file server for the production builds
-│  ├─ setgen/            # Synthetic drawing-set generator (planned)
+│  ├─ setgen/            # Synthetic drawing-set generator
 │  └─ tiler/             # PDF → tile pyramid pipeline (planned)
 └─ docs/adr/             # Architecture decision records (planned)
 ```
 
 Entries marked planned do not exist yet.
 
+## The test data is generated, and regenerates identically
+
+Rendering claims are only comparable if every run measures the same document, so the drawing set is generated rather than sampled, and generated deterministically.
+
+```bash
+pnpm setgen
+# 1500 sheets, 42.2 MB, ~20s
+# set checksum b95b5f468d12b08a5bbb9d78ac394c8ad54ee6cdd36fc8bff0a66fcfe76739be
+```
+
+`tools/setgen` produces 1,500 ARCH E1 sheets (30 × 42 in) as vector PDFs — column grids, subdivided floor plates, hatching, room tags, dimension strings and a ruled title block, at a density that is non-trivial to rasterize. Sheet numbering follows discipline convention: `A-101`, `AD-201`, `S-304`, `M-412`, `E-508`.
+
+Each sheet is drawn from a generator seeded by its own sheet number, not from one stream shared across the run. Regenerating a single sheet therefore reproduces exactly the bytes the full run wrote, so generation can be partial without changing the set. Every timestamp the PDF writer would otherwise take from the clock is pinned, since one unpinned date makes a checksum record when a run happened rather than what it produced.
+
+The output is not committed — the seed is the reproducibility mechanism, so the set is regenerated rather than carried in git. The set checksum above is one hash over all 1,500 per-sheet checksums, taken in sheet-number order: comparing that single line is comparing the whole set.
+
 ## Status
 
-Pre-alpha. The platform package ships design tokens and the event bus. The shell renders its chrome from those tokens and composes the viewer remote at runtime over Module Federation, with active-sheet state crossing the bus between them. Both apps run from their production builds on separate origins.
+Pre-alpha. The platform package ships design tokens and the event bus. The shell renders its chrome from those tokens and composes the viewer remote at runtime over Module Federation, with active-sheet state crossing the bus between them. Both apps run from their production builds on separate origins. The synthetic drawing set generates.
 
-The navigator and compare remotes, the tiling pipeline, UI primitives, and per-app deployment pipelines are not built yet.
+Sheet rendering itself — the tile pyramid, the worker-confined parse, the gesture layer — is next. The navigator and compare remotes, UI primitives, and per-app deployment pipelines are not built yet.
 
 ## License
 

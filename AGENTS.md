@@ -15,12 +15,17 @@ Pre-alpha. Two workspace packages exist:
   at runtime and shows active-sheet state published on the bus.
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
+- **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
+  rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
+  so the set regenerates byte for byte. Plain Node, run locally, never in the
+  browser.
 
 The shell holds no remote addresses. It reads `public/remotes.json` at startup and
 registers remotes at runtime, so the build contains no remote URL.
 
-`tools/` and `docs/` do not exist. The directory tree in `README.md` is partly
-planned, so verify a path exists before referencing it.
+`tools/` holds `serve.mjs` and `setgen/`; `docs/` holds `perf/` only — there are
+no ADRs yet. The directory tree in `README.md` is partly planned, so verify a
+path exists before referencing it.
 
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
@@ -37,12 +42,24 @@ and compare remotes.
 | `pnpm dev` | All dev servers, persistent |
 | `pnpm serve` | Serve each app's built `dist/` as a static host would |
 | `pnpm test` | Vitest per package |
+| `pnpm setgen` | Generate the synthetic drawing set into `data/sets/v1` |
+| `pnpm perf` | Playwright performance specs against the running static servers |
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 3 packages; `test` runs in `platform` only.
+`build` and `typecheck` run in 3 packages; `test` runs in `platform` and
+`setgen`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
+outside any package's `dist/`, and takes about 20 seconds, so it has no business
+in a build graph.
+
 `pnpm dev` serves the shell on 4100 and the viewer on 4101. Each remote gets its
-own port, assigned in its `rspack.config.ts`.
+own port, assigned in its `rspack.config.ts`. `pnpm serve` adds the generated
+sheet set on 4200, served by `@gridline/setgen` — a third origin, because in
+production drawing data comes from a CDN rather than from an app's own origin.
+
+`pnpm perf` needs `pnpm build && pnpm serve` already running and never starts a
+server itself, for the same reason `serve` never triggers a build: a spec that
+built its own target could measure bytes nobody has looked at.
 
 `pnpm serve` runs `tools/serve.mjs` against each app's `dist/` on those same
 ports, so the remote lookup needs no second copy — the cost is that `dev` and
