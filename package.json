@@ -7,6 +7,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "serve": "turbo run serve",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
