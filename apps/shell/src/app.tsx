@@ -3,6 +3,7 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { bus } from "@gridline/platform/bus";
 
 import { RemoteBoundary } from "./remote-boundary";
+import { SheetNav } from "./sheet-nav";
 import { loadSheetSurface } from "./remotes";
 
 /* loadRemote rather than import(): with no remote declared in the build config,
@@ -59,6 +60,10 @@ export function App() {
         <span className="shell-separator" aria-hidden="true" />
 
         <span className="shell-set">Tower B — Permit Set</span>
+
+        <span className="shell-separator" aria-hidden="true" />
+
+        <SheetNav sheetId={sheet?.sheetId ?? sheetId} />
 
         <span className="shell-separator" aria-hidden="true" />
 

@@ -82,3 +82,34 @@
   margin: 0;
   color: var(--text-tertiary);
 }
+
+/* Minimal sheet navigation. Replaced by the navigator remote in Phase 3. */
+.shell-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.shell-nav button,
+.shell-nav input {
+  /* A touch target is a physical dimension: 44px is a gloved-hand minimum and a
+     finger does not shrink because someone prefers smaller text. min-height, so
+     raising the text size grows the control rather than clipping it. */
+  min-height: 44px;
+  background: var(--surface-chrome-raised);
+  border: var(--border-w) solid var(--border-subtle);
+  border-radius: var(--radius-1);
+  color: var(--text-primary);
+  font: var(--type-data);
+}
+
+.shell-nav button {
+  min-width: 44px;
+  cursor: pointer;
+}
+
+.shell-nav input {
+  width: 6rem;
+  padding: 0 var(--space-2);
+  font-variant-numeric: var(--numeric-tabular);
+}
