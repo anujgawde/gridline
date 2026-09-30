@@ -3,13 +3,18 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { bus } from "@gridline/platform/bus";
 
 import { RemoteBoundary } from "./remote-boundary";
+import { loadSheetSurface } from "./remotes";
 
-/* A remote that cannot be fetched rejects this promise. Left unhandled it is an
-   uncaught rejection that takes the whole shell down before React renders, so
-   the failure is converted into a component here. RemoteBoundary below still
-   covers the other case: the remote loaded, then threw while rendering. */
+/* loadRemote rather than import(): with no remote declared in the build config,
+   the bundler no longer knows this specifier names a remote, so import syntax
+   cannot resolve it. That is the documented trade-off of registering at runtime.
+
+   A remote that cannot be fetched — including one absent from the lookup
+   entirely — rejects here, and the rejection is converted into a component so it
+   stays inside this slot. RemoteBoundary covers the other case: the remote loaded
+   and then threw while rendering. */
 const SheetSurface = lazy(() =>
-  import("viewer/SheetSurface")
+  loadSheetSurface()
     .then((m) => ({ default: m.SheetSurface }))
     .catch((error: unknown) => {
       console.error('[shell] remote "viewer" failed to load', error);

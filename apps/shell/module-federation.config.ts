@@ -14,23 +14,19 @@ export default createModuleFederationConfig({
   // contract is hand-written in src/remotes.d.ts instead.
   dts: false,
 
-  // The address is fixed here for now. Moving it into a lookup the shell reads
-  // at runtime is the next step, and is what lets a remote move without the
-  // shell being rebuilt.
+  // No `remotes` here, deliberately. Addresses are fetched and registered at
+  // runtime instead — see src/remotes.ts — so this build contains no remote URL
+  // and a remote can move without the shell being rebuilt.
   //
-  // The entry is remoteEntry.js and NOT mf-manifest.json, which is measured
-  // rather than assumed. Pointing a declared remote at a manifest makes the
-  // runtime fetch that manifest during federation init, and init gates the async
-  // boundary in main.tsx — so a viewer that is simply down leaves #root empty.
-  // Not a degraded shell: no shell at all, and no error React can catch.
-  // A .js entry is resolved when the module is first requested instead, which
-  // puts the failure inside the remote's own slot where app.tsx handles it.
+  // The stronger reason is startup. A remote declared here with a manifest entry
+  // is fetched during federation init, and init gates the async boundary in
+  // main.tsx: an unreachable remote then leaves the page empty before React runs,
+  // with no error any boundary can catch. registerRemotes runs after the shell has
+  // rendered, so no remote can prevent the shell starting. That makes the
+  // degradation structural rather than a side effect of the address format.
   //
-  // The viewer still emits a manifest; the next step consumes it via
-  // registerRemotes, which also runs after the shell has rendered.
-  remotes: {
-    viewer: "viewer@http://localhost:4101/remoteEntry.js",
-  },
+  // The plugin is still required. It provides `shared`, which is what makes React
+  // and the bus resolve to one instance; only the addresses moved.
 
   // Must match apps/viewer's block exactly — it is the version contract between
   // the two apps. See the comments there for why requiredVersion is explicit and
