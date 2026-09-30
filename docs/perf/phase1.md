@@ -121,35 +121,56 @@ failure, and the sheet number it happens at, is the result.
 
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
-| Document open (1,500 pages) | 217 s | |
-| First sheet on screen | 225 s | |
-| Sheet change, first ten (median) | 210 ms (174–224930) | |
-| Sheet change, last ten (median) | 224 ms (181–251) | |
-| Worst frame, first ten | 25 ms (23–35) | |
-| Worst frame, last ten | 24 ms (22–27) | |
-| Memory at sheet 1 | 59.9 MB | |
-| **Memory peak** | **2230 MB** (2180 MB of it canvas) | |
-| Memory passes 400 MB at | **sheet 9** | |
-| Sheets painted of 50 | 50 / 50 | |
+| Document open (1,500 pages) | 217 s | — never opened |
+| First sheet on screen | 225 s | **8.45 s** |
+| Sheet change, first ten (median) | 210 ms (174–224930) | 1321 ms (1301–7970) |
+| Sheet change, last ten (median) | 224 ms (181–251) | 1324 ms (1301–1338) |
+| **Returning to a visited sheet** | not measured | **47 ms** (40–52) |
+| Worst frame, first ten | 25 ms (23–35) | 22 ms (18–34) |
+| Worst frame, last ten | 24 ms (22–27) | 22 ms (20–29) |
+| Memory at sheet 1 | 59.9 MB | 13.1 MB |
+| **Memory peak** | **2230 MB** (2180 MB canvas) | **210 MB** (201 MB tiles) |
+| Memory passes 400 MB at | **sheet 9** | never |
+| Sheets painted of 50 | 50 / 50 | 50 / 50 |
 
-Two separate failures.
+### What the two renderers do differently
 
-**225 seconds before the first drawing.** The whole 42 MB document is downloaded
-before anything is shown, because the renderer is handed a file and opens it.
-Nothing is on screen for nearly four minutes.
+**The naive renderer fails twice, for unrelated reasons.** It downloads the whole
+42 MB document before showing anything — 225 seconds of blank screen. And it keeps
+every page it renders, so memory climbs 43.6 MB a sheet, dead linear, to 2.18 GB
+over fifty. Between those two it never degrades: sheet changes and frame times are
+flat from the first ten sheets to the last. It stays responsive right up until the
+device stops it.
 
-**Memory grows 43.6 MB per sheet, exactly linear.** A rendered page is kept and
-nothing evicts it: 2.18 GB of canvas over fifty sheets, passing 400 MB at sheet
-9. The wide range on the first-ten median (174–224930 ms) is that first sheet
-carrying the document download; every sheet after it is ~200 ms.
+**The tiled renderer fixes both and pays for it between sheets.**
 
-Once the document is open the app stays responsive — sheet changes and frame
-intervals are flat from the first ten to the last. It does not degrade. It
-consumes, until the device stops it.
+| | change |
+|---|---|
+| First sheet on screen | 225 s → 8.45 s, **27x faster** |
+| Main-thread block on load | 1120 ms → 133 ms, **8x less** |
+| Longest single task | 875 ms → 87 ms, **10x shorter** |
+| Peak memory over 50 sheets | 2230 MB → 210 MB, **11x less** |
+| Sheet change | 210 ms → 1321 ms, **6x slower** |
+| Returning to a visited sheet | — → 47 ms |
 
-Sheets were spread across the whole set rather than taken consecutively, so this
-is not an artifact of one discipline. A session shorter than nine sheets would
-have shown none of it.
+**The slower sheet change is real and is the honest cost.** Naive is quick between
+sheets because it already paid for all of them; every page is in memory. Tiled
+fetches what it needs per sheet, so it pays a little each time instead of
+everything once. 225 seconds of nothing versus 1.3 seconds per sheet is a trade,
+not a free win, and a session of more than about 170 sheets would spend more time
+waiting under tiled than under naive.
+
+**Returning to a sheet costs 47 ms**, because nothing is fetched at all: the tile
+index is memoized, the coarse levels are pinned in the cache, and set content is
+served `immutable` so anything else is in the browser's cache. That row does not
+exist for naive because a revisit there is simply a cache hit in RAM.
+
+**One thing the run does not prove.** Tiled memory is still growing at about 4 MB
+a sheet — 11x slower than naive, but linear. It is bounded: the cache budget is
+256 MB, so eviction starts near sheet 64 and the curve should flatten there. This
+session stopped at 50 and 201 MB, so **the plateau is argued rather than shown**.
+A longer run is what would settle it, and until then the memory claim is "much
+slower growth", not "flat".
 
 ### On measuring memory
 
@@ -180,12 +201,14 @@ range in brackets, each run in a fresh browser context so the cache is empty.
 
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
-| Document open (42 MB over the link) | 217.7 s | |
-| **First sheet on screen** | **225.5 s** | |
-| Rasterizing one page | 278 ms (276–305) | |
-| Main-thread block during load | 1120 ms (1037–1190) | |
-| Longest single task | 875 ms (872–879) | |
-| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | |
+| Document open (42 MB over the link) | 217.7 s | — never opened |
+| **First sheet on screen** | **225.5 s** | **8.45 s** (8439–9017) |
+| Rasterizing one page | 278 ms (276–305) | — no PDF in the browser |
+| Main-thread block during load | 1120 ms (1037–1190) | **133 ms** (87–150) |
+| Longest single task | 875 ms (872–879) | **87 ms** (76–87) |
+| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | 4028 ms (3996–4144) |
+| Viewer's own share of the cold load | — | 1235 ms (1232–1253) |
+| JS heap after first sheet | 21 MB | 7 MB |
 
 Three runs landed within 37 ms of each other (225539–225576). That is not
 precision, it is a measurement dominated by a fixed transfer: 42 MB at a fixed
