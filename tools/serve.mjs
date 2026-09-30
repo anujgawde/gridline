@@ -11,7 +11,9 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
+import { pipeline } from "node:stream/promises";
 import { parseArgs } from "node:util";
+import { createBrotliCompress, createGzip } from "node:zlib";
 
 const { values } = parseArgs({
   options: {
@@ -50,9 +52,33 @@ const TYPES = new Map(
     ".svg": "image/svg+xml",
     ".woff2": "font/woff2",
     ".png": "image/png",
+    ".webp": "image/webp",
+    ".pdf": "application/pdf",
     ".ico": "image/x-icon",
   }),
 );
+
+// Text compresses; images, fonts and PDFs are already compressed and gzipping
+// them spends CPU to add bytes. This list is deliberately close to what a CDN
+// compresses by default, PDF included in the exclusions — a host does not
+// compress application/pdf either.
+const COMPRESSIBLE = /^(text\/|application\/(javascript|json)|image\/svg\+xml)/;
+
+// A deployed build is served compressed: every static host and CDN negotiates
+// gzip or brotli from Accept-Encoding, and §7's bundle budgets are written in
+// gzip for that reason. Serving raw here would inflate every byte-bound
+// measurement by roughly 3x and quietly make the numbers about this file rather
+// than about the app — the same trap as a header that only exists in devServer.
+//
+// Pre-compressed .br/.gz files on disk are the other half of how this works in
+// production, but they are a build concern; what a host does for you is this.
+function negotiate(acceptEncoding = "", contentType) {
+  if (!COMPRESSIBLE.test(contentType)) return null;
+  const accepted = acceptEncoding.toLowerCase();
+  if (accepted.includes("br")) return { encoding: "br", create: createBrotliCompress };
+  if (accepted.includes("gzip")) return { encoding: "gzip", create: createGzip };
+  return null;
+}
 
 async function resolveFile(url) {
   const path = decodeURIComponent(url.split("?")[0]);
@@ -94,9 +120,32 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  headers["Content-Type"] = TYPES.get(extname(file)) ?? "application/octet-stream";
+  const contentType = TYPES.get(extname(file)) ?? "application/octet-stream";
+  headers["Content-Type"] = contentType;
+
+  const encoding = negotiate(req.headers["accept-encoding"], contentType);
+
+  // Always present, compressed or not: the response for a URL varies by request
+  // header, and a cache that does not know that can hand a gzip body to a client
+  // that asked for none.
+  headers["Vary"] = "Accept-Encoding";
+
+  if (!encoding) {
+    res.writeHead(200, headers);
+    createReadStream(file).pipe(res);
+    return;
+  }
+
+  headers["Content-Encoding"] = encoding.encoding;
   res.writeHead(200, headers);
-  createReadStream(file).pipe(res);
+
+  try {
+    await pipeline(createReadStream(file), encoding.create(), res);
+  } catch {
+    // A client that navigated away mid-response aborts the pipeline. Nothing to
+    // report: the socket is already gone.
+    res.destroy();
+  }
 });
 
 // Each app is served on the same port its dev server uses, so the remote lookup
