@@ -13,10 +13,11 @@
 // measurements comparable.
 
 import { createHash } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
+import { combineSheets } from "./combine.mjs";
 import { renderSheet } from "./render.mjs";
 import { buildSheetList } from "./sheets.mjs";
 
@@ -87,6 +88,22 @@ async function main() {
     return;
   }
 
+  /* The set as one document, which is what a drawing set is when it is issued.
+     The individual sheets stay on disk as the input the tiler consumes; this is
+     the input the naive renderer opens. Same sheets on both sides, so the
+     comparison is about technique rather than about the data. */
+  process.stdout.write("  combining into one document\n");
+  const { bytes: combinedBytes, index } = await combineSheets(
+    sheets,
+    (sheet) => readFile(join(outDir, `sheets/${sheet.sheetId}.pdf`)),
+    (done, all) => process.stdout.write(`    ${done}/${all}\n`),
+  );
+  await writeFile(join(outDir, "combined.pdf"), combinedBytes);
+  await writeFile(
+    join(outDir, "sheet-index.json"),
+    `${JSON.stringify({ seed: values.seed, sheets: index }, null, 2)}\n`,
+  );
+
   const total = entries.reduce((sum, e) => sum + e.bytes, 0);
 
   // One checksum over every sheet's checksum, taken in sheet-number order so it
@@ -119,6 +136,9 @@ async function main() {
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
     `${entries.length} sheets, ${(total / 1024 / 1024).toFixed(1)} MB, ${seconds}s -> ${values.out}`,
+  );
+  console.log(
+    `combined.pdf  ${index.length} pages, ${(combinedBytes.length / 1024 / 1024).toFixed(1)} MB`,
   );
   console.log(`set checksum ${setChecksum}`);
 }
