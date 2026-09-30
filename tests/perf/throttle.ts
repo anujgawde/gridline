@@ -50,16 +50,48 @@ export async function readLongTasks(page: Page): Promise<LongTaskSummary> {
   };
 }
 
+/* The CPU throttle only. The network is throttled by the server, not here.
+
+   CDP applies network conditions per target, and a service worker is its own
+   target — so conditions set on the page do not reach anything the worker
+   fetches. MSW registers at scope "/", which is every request after it
+   activates. The failure is silent: resources loaded before the worker takes
+   control are throttled, everything after runs at full local speed, and the
+   waterfall looks plausible either way.
+
+   It was caught by a number that refused to move. Opening a 42 MB document
+   measured 2400 ms unthrottled and 2427 ms at "Fast 3G", while fetching the
+   same file directly under the same conditions took 209 seconds.
+
+   Playwright does not expose child CDP sessions, so the worker target cannot be
+   reached from here. The fix is to throttle the link instead of the client:
+   `tools/serve.mjs --throttle` paces every response, so it applies to all three
+   origins and to every requester, worker or not. Run the servers with it. */
 export async function applyProfile(page: Page): Promise<CDPSession> {
   const client = await page.context().newCDPSession(page);
   await client.send("Emulation.setCPUThrottlingRate", {
     rate: PROFILE.cpuThrottlingRate,
   });
   await client.send("Network.enable");
-  await client.send("Network.emulateNetworkConditions", PROFILE.network);
   // Without this the metrics domain reports nothing and every heap reading is 0.
   await client.send("Performance.enable");
   return client;
+}
+
+/* Confirms the servers are actually pacing responses, so a run cannot silently
+   produce unthrottled numbers that look like throttled ones. */
+export async function assertServerThrottled(
+  get: (url: string) => Promise<{ headers(): Record<string, string> }>,
+) {
+  const response = await get("http://localhost:4100/");
+  const header = response.headers()["x-gridline-throttle"];
+  if (!header) {
+    throw new Error(
+      "servers are not throttling. Run `pnpm serve` (which passes --throttle), " +
+        "or these numbers describe a local disk rather than a network.",
+    );
+  }
+  return header;
 }
 
 /* Heap read from the browser's own metrics rather than performance.memory,
