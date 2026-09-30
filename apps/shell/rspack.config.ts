@@ -53,6 +53,13 @@ export default defineConfig({
   plugins: [
     new ModuleFederationPlugin(mfConfig),
     new rspack.HtmlRspackPlugin({ template: "./src/index.html" }),
+    // MSW's worker script has to be served from the app root, or its scope is
+    // too narrow to intercept the app's requests. Emitting it into dist/ covers
+    // dev and production with one mechanism, since the dev server serves what the
+    // build emits — and it keeps the file inside the folder turbo.json caches.
+    new rspack.CopyRspackPlugin({
+      patterns: [{ from: "public", to: "." }],
+    }),
     isDev && new ReactRefreshRspackPlugin(),
   ],
   devServer: {
