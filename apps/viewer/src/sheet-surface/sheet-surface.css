@@ -16,14 +16,23 @@
   height: 100%;
 }
 
-/* The canvas is rasterized at sheet resolution and displayed at whatever fits.
-   Its intrinsic size is set in device pixels by the renderer; these rules only
-   decide how much of the viewport it is shown in. */
+.viewer-render {
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+/* The transform target. The page is rasterized once at sheet resolution and
+   then moved and scaled as a bitmap — which is why zooming in goes soft. That
+   is the naive trade, and one of the things a tile pyramid exists to fix. */
+.viewer-canvas-host {
+  transform-origin: center center;
+  will-change: transform;
+}
+
 .viewer-canvas {
-  max-width: 100%;
-  max-height: 100%;
+  display: block;
   background: var(--surface-chrome);
-  border: var(--border-w) solid var(--border-subtle);
   box-shadow: var(--shadow-panel);
 }
 

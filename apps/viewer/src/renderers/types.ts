@@ -1,16 +1,20 @@
-/* Named for what it does, not for how good it is. `fullpage` rasterizes the
-   whole sheet in one pass on the main thread; it is the starting point the tiled
-   renderer is measured against, and it stays in the app permanently so that
-   comparison can be re-run rather than taken on trust. */
+/* Named for what they do, not for how good they are. Both stay in the app
+   permanently, so the comparison between them is a URL anyone can open rather
+   than a commit anyone has to check out. */
 export type RendererName = "fullpage";
 
-export interface SheetRendererProps {
-  sheetId: string;
-  url: string;
-  onPainted?: () => void;
+export interface Viewport {
+  x: number;
+  y: number;
+  scale: number;
 }
 
-/* Rendering is asynchronous and allowed to fail — an unreachable sheet is a
-   normal condition, not an exception to throw at the host. The state is on the
-   DOM as well, so a test can wait for it without reaching into React. */
+export interface SheetRendererProps {
+  /* The sheet being asked for. Changing it is a navigation, not a remount —
+     a session moves between sheets without reloading, which is the only way
+     anything cumulative can be measured. */
+  sheetId: string;
+  onPainted?: (sheetId: string) => void;
+}
+
 export type RenderState = "loading" | "painted" | "failed";
