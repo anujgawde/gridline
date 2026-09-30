@@ -28,6 +28,7 @@ import {
    measurement is dominated by a fixed transfer, which does not vary much. */
 const RUNS = Number(process.env.PERF_RUNS ?? 3);
 const SHEET_ID = process.env.PERF_SHEET ?? "A-101";
+const RENDERER = process.env.PERF_RENDERER ?? "tiled";
 
 const ORIGINS = {
   shell: "http://localhost:4100",
@@ -60,7 +61,7 @@ test.beforeAll(async ({ request }) => {
 
 /* Cold start only, repeated for a median. What happens after the first sheet is
    session.spec.ts's job, and that is where the interesting failure lives. */
-test(`fullpage renderer — cold start, ${RUNS} runs`, async ({ browser }) => {
+test(`${RENDERER} renderer — cold start, ${RUNS} runs`, async ({ browser }) => {
   test.setTimeout(RUNS * 480_000);
 
   const samples: Sample[] = [];
@@ -78,7 +79,7 @@ test(`fullpage renderer — cold start, ${RUNS} runs`, async ({ browser }) => {
     const client = await applyProfile(page);
 
     const startedAt = Date.now();
-    await page.goto(`http://localhost:4100/?renderer=fullpage&sheet=${SHEET_ID}`, {
+    await page.goto(`http://localhost:4100/?renderer=${RENDERER}&sheet=${SHEET_ID}`, {
       waitUntil: "commit",
     });
     await page.waitForSelector(
@@ -127,7 +128,7 @@ test(`fullpage renderer — cold start, ${RUNS} runs`, async ({ browser }) => {
   const reading = {
     takenAt: new Date().toISOString(),
     profile: PROFILE.label,
-    renderer: "fullpage",
+    renderer: RENDERER,
     sheetId: SHEET_ID,
     runs: RUNS,
     metrics: {
@@ -151,19 +152,22 @@ test(`fullpage renderer — cold start, ${RUNS} runs`, async ({ browser }) => {
 
   await mkdir("test-results", { recursive: true });
   await writeFile(
-    "test-results/phase1-baseline.json",
+    `test-results/phase1-baseline-${RENDERER}.json`,
     `${JSON.stringify(reading, null, 2)}\n`,
   );
 
-  console.log(`\n  baseline — ${PROFILE.label}, ${SHEET_ID}, median of ${RUNS}`);
+  console.log(`\n  baseline — ${PROFILE.label}, ${SHEET_ID}, ${RENDERER}, median of ${RUNS}`);
   for (const [key, stat] of Object.entries(reading.metrics)) {
     const unit = key === "heapUsedMb" ? "MB" : "ms";
     console.log(`    ${key.padEnd(28)} ${format(stat, unit)}`);
   }
-  console.log(`\n  written to test-results/phase1-baseline.json\n`);
+  console.log(`\n  written to test-results/phase1-baseline-${RENDERER}.json\n`);
 
   /* The only assertions: something was actually measured, on every run. A run
      where the sheet never painted would otherwise write a file of nulls. */
   expect(reading.metrics.coldSheetOnCanvas.samples).toBe(RUNS);
-  expect(reading.metrics.sheetRaster.median).not.toBeNull();
+  /* sheetShown, not sheetRaster: the tiled renderer never rasterizes a PDF, so
+     asserting on a measure only one renderer emits fails the other one for
+     doing its job. */
+  expect(reading.metrics.sheetShown.median).not.toBeNull();
 });

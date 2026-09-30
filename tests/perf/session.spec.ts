@@ -26,6 +26,9 @@ import {
    recorded rather than avoided. */
 
 const SHEETS = Number(process.env.PERF_SHEETS ?? 50);
+/* Both renderers run the identical script against the identical document.
+   Anything else and the comparison is between two experiments. */
+const RENDERER = process.env.PERF_RENDERER ?? "tiled";
 /* The first sheet has to wait for a 42 MB document over a paced link, which is
    minutes rather than seconds. Later sheets are fast, so this bound is generous
    for almost every step and only load-bearing for the first. */
@@ -52,7 +55,7 @@ interface SheetReading {
   failed?: string;
 }
 
-test("fullpage renderer — a session across the set", async ({
+test(`${RENDERER} renderer — a session across the set`, async ({
   browser,
   request,
 }) => {
@@ -93,7 +96,7 @@ test("fullpage renderer — a session across the set", async ({
   let failedAt: SheetReading | null = null;
 
   const coldStart = Date.now();
-  await page.goto("/?renderer=fullpage", { waitUntil: "commit" });
+  await page.goto(`/?renderer=${RENDERER}`, { waitUntil: "commit" });
 
   for (const [i, sheetId] of visits.entries()) {
     if (crashed) break;
@@ -151,7 +154,11 @@ test("fullpage renderer — a session across the set", async ({
           .getAttribute(name)
           .catch(() => "0")) ?? "0",
       );
-    const pagesHeld = crashed ? 0 : await attr("data-pages-held");
+    /* fullpage holds rasterized pages, tiled holds decoded tiles. Different
+       units, same question: how much is being kept. */
+    const pagesHeld = crashed
+      ? 0
+      : (await attr("data-pages-held")) || (await attr("data-tiles-held"));
     /* Canvas pixels, reported by the renderer. They sit outside the JS heap, so
        no sampled metric counts them — and for this renderer they are the memory
        that matters. */
@@ -188,6 +195,37 @@ test("fullpage renderer — a session across the set", async ({
     if (crashed) break;
   }
 
+  /* Returning to sheets already visited.
+
+     A real session is not a one-way walk: people go back to the sheet they were
+     just on. What that costs is a different question from what a first visit
+     costs, and the difference is the entire argument for caching anything. */
+  const revisits: { sheetId: string; ms: number }[] = [];
+  if (!crashed && readings.length >= 4) {
+    const sample = [0, Math.floor(readings.length / 2), readings.length - 2]
+      .map((i) => readings[i]?.sheetId)
+      .filter((id): id is string => Boolean(id));
+
+    for (const sheetId of sample) {
+      const startedAt = Date.now();
+      try {
+        const input = page.getByLabel("Go to sheet");
+        await input.fill(sheetId);
+        await input.press("Enter");
+        await page.waitForSelector(
+          `[data-sheet="${sheetId}"][data-state="painted"]`,
+          { timeout: SHEET_TIMEOUT_MS },
+        );
+        revisits.push({ sheetId, ms: Date.now() - startedAt });
+      } catch {
+        // A revisit that fails is worth knowing about but does not fail the run.
+      }
+    }
+    console.log(
+      `    revisits: ${revisits.map((r) => `${r.sheetId} ${r.ms}ms`).join("  ")}`,
+    );
+  }
+
   const painted = readings.filter((r) => r.msToPaint !== null);
   const firstTen = painted.slice(0, 10);
   const lastTen = painted.slice(-10);
@@ -195,7 +233,7 @@ test("fullpage renderer — a session across the set", async ({
   const result = {
     takenAt: new Date().toISOString(),
     profile: PROFILE.label,
-    renderer: "fullpage",
+    renderer: RENDERER,
     document: "combined.pdf, 1500 pages, 41.7 MB",
     sheetsRequested: SHEETS,
     sheetsPainted: painted.length,
@@ -223,17 +261,19 @@ test("fullpage renderer — a session across the set", async ({
       exceededAt:
         readings.find((r) => total(r) > MEMORY_MARKER_MB)?.ordinal ?? null,
     },
+    revisit: summarize(revisits.map((r) => r.ms)),
     failedAt,
     readings,
+    revisits,
   };
 
   await mkdir("test-results", { recursive: true });
   await writeFile(
-    "test-results/phase1-session.json",
+    `test-results/phase1-session-${RENDERER}.json`,
     `${JSON.stringify(result, null, 2)}\n`,
   );
 
-  console.log(`\n  session — ${PROFILE.label}, ${SHEETS} sheets, fullpage`);
+  console.log(`\n  session — ${PROFILE.label}, ${SHEETS} sheets, ${RENDERER}`);
   console.log(`    document opened in          ${result.coldStart.documentOpenMs} ms`);
   console.log(`    first sheet on screen       ${result.coldStart.firstSheetMs} ms`);
   console.log(`    sheet change, first ten     ${format(result.sheetChange.firstTen)}`);
@@ -243,6 +283,7 @@ test("fullpage renderer — a session across the set", async ({
   console.log(`    memory at sheet 1           ${result.memoryMb.atSheet1} MB`);
   console.log(`    memory peak                 ${result.memoryMb.peak} MB`);
   console.log(`      of which canvas pixels    ${result.memoryMb.pixelsAtPeak} MB`);
+  console.log(`    sheet revisit               ${format(result.revisit)}`);
   console.log(`    sheets painted              ${painted.length}/${SHEETS}`);
   if (result.memoryMb.exceededAt) {
     console.log(`    passes ${MEMORY_MARKER_MB} MB at sheet        ${result.memoryMb.exceededAt}`);
@@ -250,7 +291,7 @@ test("fullpage renderer — a session across the set", async ({
   if (failedAt) {
     console.log(`    first failure at sheet      ${failedAt.ordinal} (${failedAt.sheetId}) — ${failedAt.failed ?? `past ${MEMORY_MARKER_MB} MB`}`);
   }
-  console.log(`\n  written to test-results/phase1-session.json\n`);
+  console.log(`\n  written to test-results/phase1-session-${RENDERER}.json\n`);
 
   /* A session that painted nothing measured nothing. Everything beyond that is
      recorded rather than asserted — the naive renderer failing this is the
