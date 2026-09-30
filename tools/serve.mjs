@@ -86,20 +86,40 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
    it is uniform, visible in this file, and cannot be bypassed by a worker. */
 async function writePaced(res, stream) {
   await sleep(FAST_3G.latencyMs);
+  if (res.destroyed) return;
+
   const chunkMs = 40;
   const chunkBytes = Math.max(1, Math.round((FAST_3G.bytesPerSecond * chunkMs) / 1000));
 
+  /* A client that aborts mid-response destroys the socket. Waiting for "drain"
+     on a destroyed socket waits forever, which holds the connection open and
+     the browser's per-origin slot with it — so the requests someone is actually
+     waiting for queue behind responses nobody will ever read. It measured as
+     nearly four seconds per sheet change and looked like a client bug. */
+  const drain = () =>
+    new Promise((done) => {
+      if (res.destroyed) return done();
+      const finish = () => {
+        res.off("drain", finish);
+        res.off("close", finish);
+        done();
+      };
+      res.once("drain", finish);
+      res.once("close", finish);
+    });
+
   let buffer = Buffer.alloc(0);
   for await (const piece of stream) {
+    if (res.destroyed) return;
     buffer = Buffer.concat([buffer, piece]);
     while (buffer.length >= chunkBytes) {
-      if (!res.write(buffer.subarray(0, chunkBytes))) {
-        await new Promise((done) => res.once("drain", done));
-      }
+      if (!res.write(buffer.subarray(0, chunkBytes))) await drain();
+      if (res.destroyed) return;
       buffer = buffer.subarray(chunkBytes);
       await sleep(chunkMs);
     }
   }
+  if (res.destroyed) return;
   if (buffer.length) res.write(buffer);
   res.end();
 }
@@ -127,13 +147,31 @@ async function resolveFile(url) {
   }
 }
 
+/* What a host may cache, and what it must not.
+
+   Two different kinds of file are served here and they want opposite answers.
+
+   Deployment data — the shell's entry, the federation manifest, the lookups —
+   must never be cached. A cached remoteEntry.js serves the previous deployment,
+   which reads exactly like the new one having failed to ship, and that would
+   break the deploy-without-rebuild proof.
+
+   Set content is the opposite. A tile for a given sheet, level and position never
+   changes: a new revision of the set is a new directory. So it is immutable, and
+   a CDN in front of object storage would serve it that way. Sending no-store on
+   tiles meant re-downloading every one on every revisit — which made returning
+   to a sheet cost as much as opening it for the first time. */
+const IMMUTABLE = /^\/(tiles|sheets)\/|^\/combined\.pdf$|^\/sheet-index\.json$/;
+
+function cacheControl(path) {
+  return IMMUTABLE.test(path)
+    ? "public, max-age=31536000, immutable"
+    : "no-store";
+}
+
 const server = createServer(async (req, res) => {
-  const headers = {
-    // Nothing is cached. A deploy check reloads the page expecting the bytes
-    // currently on disk, and a cached remoteEntry.js would serve the previous
-    // deployment — which reads as the new one having failed to ship.
-    "Cache-Control": "no-store",
-  };
+  const path = decodeURIComponent((req.url ?? "/").split("?")[0]);
+  const headers = { "Cache-Control": cacheControl(path) };
 
   // Only a remote opens itself to other origins. The shell has no reason to,
   // and withholding the header here keeps that asymmetry visible rather than
