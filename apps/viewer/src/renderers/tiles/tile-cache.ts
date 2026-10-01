@@ -67,8 +67,18 @@ export class TileCache {
     return this.#entries.get(id)?.bitmap;
   }
 
+  /* Takes ownership of the bitmap. Every caller hands it over and does not
+     touch it again, which is what lets this close one it decides not to keep. */
   set(id: string, bitmap: ImageBitmap) {
-    if (this.#entries.has(id)) return;
+    if (this.#entries.has(id)) {
+      /* Already held, so this is a second decode of the same tile. Dropping it
+         without closing would strand its pixels: they live outside the JS heap,
+         so the collector cannot reclaim them, and outside #bytes, so the budget
+         cannot see them. The cache would then exceed its bound while its own
+         counters reported compliance. */
+      bitmap.close();
+      return;
+    }
 
     const bytes = bitmap.width * bitmap.height * BYTES_PER_PIXEL;
     this.#entries.set(id, { bitmap, bytes });

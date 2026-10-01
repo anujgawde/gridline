@@ -76,6 +76,11 @@ export class TileLoader {
   #inFlight = new Map<string, Promise<void>>();
   #aborts = new Map<string, AbortController>();
   #queue: { id: string; url: string; onReady: () => void }[] = [];
+  /* Every tile this loader still owes an answer for, queued or in flight.
+     `#inFlight` cannot serve that purpose: it holds only what has actually
+     started, so a tile waiting behind MAX_IN_FLIGHT has no promise there to
+     await. */
+  #outstanding = new Map<string, { done: Promise<void>; settle: () => void }>();
 
   constructor(
     private readonly baseUrl: string,
@@ -98,6 +103,13 @@ export class TileLoader {
       if (this.#inFlight.has(id)) continue;
 
       if (this.#queue.some((q) => q.id === id)) continue;
+
+      let settle = () => {};
+      const done = new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      this.#outstanding.set(id, { done, settle });
+
       this.#queue.push({
         id,
         url: `${this.baseUrl}/tiles/${sheetId}/l${key.level}/${key.col}_${key.row}.webp`,
@@ -142,6 +154,7 @@ export class TileLoader {
       .finally(() => {
         this.#inFlight.delete(id);
         this.#aborts.delete(id);
+        this.#settle(id);
         this.#pump();
       });
 
@@ -157,10 +170,39 @@ export class TileLoader {
   abortExcept(sheetId: string) {
     /* The queue first: these have not been sent, so dropping them costs
        nothing and frees the slots immediately. */
+    const dropped = this.#queue.filter((q) => !q.id.startsWith(`${sheetId}/`));
     this.#queue = this.#queue.filter((q) => q.id.startsWith(`${sheetId}/`));
+    /* A dropped request still owes an answer to anything awaiting it. Without
+       this, a sheet open abandoned mid-flight never resolves. */
+    for (const entry of dropped) this.#settle(entry.id);
     for (const [id, controller] of this.#aborts) {
       if (!id.startsWith(`${sheetId}/`)) controller.abort();
     }
+  }
+
+  /* Resolves once each of these tiles is decoded, missing or aborted.
+
+     The draw loop deliberately never awaits tiles — a frame draws what it has.
+     Sheet open is the exception: it paints once, and the coarse tile has to be
+     in that paint, or `painted` would mean a blank canvas. Awaiting here rather
+     than fetching directly keeps sheet open inside the same queue, cap and
+     abort set as every other request. */
+  async settled(sheetId: string, keys: TileKey[]) {
+    await Promise.all(
+      keys
+        .map((key) => this.#outstanding.get(tileId(sheetId, key))?.done)
+        .filter((done): done is Promise<void> => done !== undefined),
+    );
+  }
+
+  /* Releases whatever is awaiting this tile, whichever way it went. Decoded,
+     missing and aborted all count: a caller waiting to paint needs to stop
+     waiting, not to be told it succeeded. */
+  #settle(id: string) {
+    const entry = this.#outstanding.get(id);
+    if (!entry) return;
+    this.#outstanding.delete(id);
+    entry.settle();
   }
 
   get pending() {

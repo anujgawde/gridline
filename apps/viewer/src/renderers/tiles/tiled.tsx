@@ -321,21 +321,12 @@ export function TiledRenderer({
           canvas.height,
           TILE_SIZE,
         );
-        await Promise.all(
-          keys.map((key) => {
-            const id = tileId(sheetId, key);
-            if (cacheRef.current?.has(id)) return undefined;
-            return fetch(
-              `${source.baseUrl.replace(/\/$/, "")}/tiles/${sheetId}/l${key.level}/${key.col}_${key.row}.webp`,
-            )
-              .then((r) => (r.ok ? r.blob() : null))
-              .then((b) => (b ? createImageBitmap(b) : null))
-              .then((bitmap) => {
-                if (bitmap) cacheRef.current?.set(id, bitmap);
-              })
-              .catch(() => undefined);
-          }),
-        );
+        /* Through the loader, not around it. Fetching here directly bypassed
+           the in-flight cap, the dedup and abortExcept, so sheet open competed
+           with the very queue it was trying to get ahead of — and a tile asked
+           for by both paths was fetched and decoded twice. */
+        loaderRef.current?.request(sheetId, keys, scheduleDraw);
+        await loaderRef.current?.settled(sheetId, keys);
       }
       if (cancelled) return;
 

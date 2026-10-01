@@ -130,6 +130,24 @@ describe("TileCache", () => {
     expect(cache.stats().count).toBe(1);
   });
 
+  /* The duplicate is dropped, and dropping it has to mean releasing it. Its
+     pixels live outside the JS heap, so nothing reclaims them on their own, and
+     they are not in #bytes either — so the cache could pass its own budget check
+     while holding memory it had forgotten about. */
+  it("releases the duplicate it refuses to hold", () => {
+    const cache = new TileCache(10 * ONE_TILE);
+    const kept = fakeBitmap();
+    const duplicate = fakeBitmap();
+
+    cache.set(deep(0), kept as unknown as ImageBitmap);
+    cache.set(deep(0), duplicate as unknown as ImageBitmap);
+
+    expect(duplicate.closed).toBe(true);
+    // And the one actually in the cache is still usable.
+    expect(kept.closed).toBe(false);
+    expect(cache.get(deep(0))).toBe(kept);
+  });
+
   it("releases everything when cleared", () => {
     const cache = new TileCache(10 * ONE_TILE);
     const bitmaps = [fakeBitmap(), fakeBitmap(), fakeBitmap()];
