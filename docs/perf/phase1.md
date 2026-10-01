@@ -191,8 +191,10 @@ a URL rather than a commit someone has to check out.
 - **`fullpage`** — pdf.js parses on the main thread, the whole sheet is
   rasterized in one pass at 4000px wide. What you write before you know the
   document is too big for it.
-- **`tiled`** — not built yet. Pre-rendered tile pyramid, level-of-detail
-  selection, pdf.js confined to a worker for deep zoom.
+- **`tiled`** — tiles from a pyramid built offline by `tools/tiler`, the level
+  chosen from the current scale, held in a byte-budgeted cache. Deep zoom past
+  the deepest pre-rendered level is not wired up; the renderer reports
+  `data-needs-deep` where it would be used.
 
 ## Cold start
 
@@ -228,17 +230,16 @@ chunks, then pdf.js, then the document. Nothing below can start until the thing
 above it arrives, so the round trips are serial — which is the price of resolving
 remotes at runtime, and the correct trade for this project, but a real one.
 
-Two things to keep in mind when the `tiled` column is filled, so the comparison
-is read honestly:
+Two things to keep in mind reading the `tiled` column, so the comparison is read
+honestly:
 
 **Tiles remove pdf.js from the cold path entirely**, because a tile is an image.
 That saving is a bundle change, not evidence that tiling is a better way to
 rasterize. Saying so is the difference between a result and a sales pitch.
 
 **Main-thread block is the number that carries the rendering thesis.** It is
-main-thread work during a load where parsing happens on the main thread by
-construction. When pdf.js moves into a worker, this is the before — measured the
-same way on both sides.
+main-thread work during a load where, for `fullpage`, parsing happens on the main
+thread by construction. Both columns are measured the same way.
 
 
 ## Budgets
