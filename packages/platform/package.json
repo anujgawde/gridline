@@ -8,21 +8,28 @@
       "types": "./dist/bus/index.d.ts",
       "default": "./dist/bus/index.js"
     },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "default": "./dist/ui/index.js"
+    },
     "./tokens.css": "./dist/tokens/index.css",
-    "./theme.css": "./dist/tokens/theme.css"
+    "./theme.css": "./dist/tokens/theme.css",
+    "./ui.css": "./dist/ui/ui.css"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc && mkdir -p dist/tokens && cp src/tokens/*.css dist/tokens/",
+    "build": "tsc && mkdir -p dist/tokens dist/ui && cp src/tokens/*.css dist/tokens/ && cp src/ui/*.css dist/ui/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "react": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/react": "^19.3.0",
     "tailwindcss": "catalog:"
   }
 }

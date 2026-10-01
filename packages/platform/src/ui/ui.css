@@ -1,0 +1,473 @@
+/* Gridline Field — UI primitives.
+
+   Every length here is a token or a px value that is deliberately physical. The
+   px exceptions are the ones the token files already argue for: hairlines,
+   border and focus widths, radii, shadow geometry, and anything sized to pair
+   with a touch target.
+
+   Control heights are min-height, never height. Text scaled up by a reader has
+   to be able to grow a control past its floor rather than overflow it. */
+
+/* ---------- Icon ---------- */
+.gf-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+/* ---------- Button ---------- */
+.gf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: auto;
+  font: var(--type-control);
+  letter-spacing: 0.005em;
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  transition: var(--transition-control);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.gf-btn--full {
+  width: 100%;
+}
+
+.gf-btn--sm {
+  min-height: var(--control-sm);
+  min-width: var(--control-sm);
+  padding: 0 var(--space-3);
+}
+
+.gf-btn--md {
+  min-height: var(--control-md);
+  min-width: var(--control-md);
+  padding: 0 var(--space-4);
+}
+
+.gf-btn--lg {
+  min-height: var(--control-lg);
+  min-width: var(--control-lg);
+  padding: 0 var(--space-5);
+}
+
+.gf-btn--primary {
+  color: var(--text-on-accent);
+  background: var(--fill-accent);
+}
+.gf-btn--primary:hover:not(:disabled) {
+  background: var(--fill-accent-hover);
+}
+.gf-btn--primary:active:not(:disabled) {
+  background: var(--fill-accent-active);
+}
+
+.gf-btn--secondary {
+  color: var(--text-primary);
+  background: var(--fill-neutral);
+  border-color: var(--border-subtle);
+}
+.gf-btn--secondary:hover:not(:disabled) {
+  background: var(--fill-neutral-hover);
+  border-color: var(--border-strong);
+}
+.gf-btn--secondary:active:not(:disabled) {
+  background: var(--fill-neutral-active);
+}
+
+.gf-btn--ghost {
+  color: var(--text-secondary);
+  background: transparent;
+}
+.gf-btn--ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.gf-btn--ghost:active:not(:disabled) {
+  background: var(--surface-active);
+}
+
+.gf-btn--danger {
+  color: var(--text-on-accent);
+  background: var(--fill-error);
+}
+.gf-btn--danger:hover:not(:disabled) {
+  background: var(--red-500);
+}
+.gf-btn--danger:active:not(:disabled) {
+  background: var(--red-700);
+}
+
+.gf-btn:disabled {
+  color: var(--text-disabled);
+  background: var(--surface-disabled);
+  border-color: var(--border-hairline);
+  cursor: not-allowed;
+}
+
+/* ---------- IconButton ---------- */
+.gf-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  transition: var(--transition-control);
+}
+
+/* Square and physical. 44px is the gloved-hand floor, and a square target does
+   not get to shrink because someone set a smaller text size. */
+.gf-iconbtn--sm {
+  width: var(--control-sm);
+  height: var(--control-sm);
+}
+.gf-iconbtn--md {
+  width: var(--control-md);
+  height: var(--control-md);
+}
+.gf-iconbtn--lg {
+  width: var(--control-lg);
+  height: var(--control-lg);
+}
+
+.gf-iconbtn--secondary {
+  color: var(--text-primary);
+  background: var(--fill-neutral);
+  border-color: var(--border-subtle);
+}
+.gf-iconbtn--primary {
+  color: var(--text-on-accent);
+  background: var(--fill-accent);
+}
+
+.gf-iconbtn--ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.gf-iconbtn--secondary:hover:not(:disabled) {
+  background: var(--fill-neutral-hover);
+}
+.gf-iconbtn--primary:hover:not(:disabled) {
+  background: var(--fill-accent-hover);
+}
+
+.gf-iconbtn--ghost:active:not(:disabled) {
+  background: var(--surface-active);
+}
+.gf-iconbtn--secondary:active:not(:disabled) {
+  background: var(--fill-neutral-active);
+}
+.gf-iconbtn--primary:active:not(:disabled) {
+  background: var(--fill-accent-active);
+}
+
+/* Selected tool. aria-pressed drives the appearance, so the state announced and
+   the state drawn cannot drift apart. */
+.gf-iconbtn[aria-pressed="true"] {
+  color: var(--text-accent);
+  background: var(--surface-selected);
+  border-color: var(--border-accent);
+}
+
+.gf-iconbtn:disabled {
+  color: var(--text-disabled);
+  background: transparent;
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+/* ---------- Toolbar ---------- */
+.gf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.gf-toolbar--horizontal {
+  flex-direction: row;
+  min-height: var(--topbar-h);
+  padding: 0 var(--space-2);
+}
+
+.gf-toolbar--vertical {
+  flex-direction: column;
+  min-width: var(--rail-w);
+  padding: var(--space-1);
+}
+
+.gf-toolbar--align-start {
+  justify-content: flex-start;
+}
+.gf-toolbar--align-center {
+  justify-content: center;
+}
+.gf-toolbar--align-end {
+  justify-content: flex-end;
+}
+.gf-toolbar--align-between {
+  justify-content: space-between;
+}
+
+.gf-toolbar--chrome {
+  background: var(--surface-chrome);
+  box-shadow: var(--shadow-chrome);
+  z-index: var(--z-chrome);
+}
+
+.gf-toolbar--chrome.gf-toolbar--horizontal {
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.gf-toolbar--chrome.gf-toolbar--vertical {
+  border-right: var(--border-w) solid var(--border-hairline);
+}
+
+/* Overlays over the drawing are ALWAYS opaque with a hairline border and a dark
+   ring — never translucent, never blurred. They have to read against white
+   paper and black linework in the same frame. */
+.gf-toolbar--overlay {
+  min-height: var(--toolbar-h);
+  background: var(--surface-overlay);
+  border: var(--border-w) solid var(--border-subtle);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-overlay);
+  z-index: var(--z-canvas-overlay);
+}
+
+.gf-toolbar-sep {
+  flex: 0 0 auto;
+  background: var(--border-subtle);
+}
+
+.gf-toolbar-sep--vertical {
+  width: var(--border-w);
+  height: var(--space-6);
+  margin: 0 var(--space-2);
+}
+
+.gf-toolbar-sep--horizontal {
+  width: var(--space-6);
+  height: var(--border-w);
+  margin: var(--space-2) 0;
+}
+
+.gf-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+/* ---------- Panel ---------- */
+.gf-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: var(--panel-w);
+  flex: 0 0 auto;
+  background: var(--surface-panel);
+  z-index: var(--z-chrome);
+}
+
+.gf-panel--wide {
+  width: var(--panel-w-wide);
+}
+
+.gf-panel--left {
+  border-right: var(--border-w) solid var(--border-hairline);
+}
+
+.gf-panel--right {
+  border-left: var(--border-w) solid var(--border-hairline);
+}
+
+.gf-panel--floating {
+  border: var(--border-w) solid var(--border-subtle);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-panel);
+  z-index: var(--z-panel);
+}
+
+.gf-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.gf-panel-footer {
+  flex: 0 0 auto;
+  border-top: var(--border-w) solid var(--border-hairline);
+  padding: var(--space-2) var(--space-3);
+}
+
+.gf-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  min-height: var(--topbar-h);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--surface-panel-header);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.gf-panel-header-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.gf-panel-header-title {
+  font: var(--type-micro);
+  letter-spacing: var(--ls-1);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gf-panel-header-meta {
+  font: var(--type-caption);
+  color: var(--text-secondary);
+  font-variant-numeric: var(--numeric-tabular);
+  margin-top: var(--space-hair);
+}
+
+.gf-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+/* ---------- Badge ---------- */
+.gf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  /* Badge heights are physical chrome, like the control floors: a status chip
+     has to stay legible next to a 44px button rather than track text size. */
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-1);
+  font: var(--type-micro);
+  letter-spacing: var(--ls-1);
+  text-transform: uppercase;
+  font-variant-numeric: var(--numeric-tabular);
+  white-space: nowrap;
+}
+
+.gf-badge--sm {
+  height: 18px;
+}
+
+.gf-badge--mono {
+  font: var(--type-data-sm);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.gf-badge--neutral {
+  background: var(--fill-neutral);
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+.gf-badge--accent {
+  background: var(--wash-accent);
+  border-color: var(--wash-accent-border);
+  color: var(--text-accent);
+}
+.gf-badge--success {
+  background: var(--wash-success);
+  border-color: var(--wash-success-border);
+  color: var(--text-success);
+}
+.gf-badge--error {
+  background: var(--wash-error);
+  border-color: var(--wash-error-border);
+  color: var(--text-error);
+}
+.gf-badge--sync {
+  background: var(--wash-sync);
+  border-color: var(--wash-sync-border);
+  color: var(--text-sync);
+}
+
+/* ---------- RevisionBadge ---------- */
+.gf-revbadge {
+  display: inline-flex;
+  align-items: stretch;
+  height: 26px;
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-1);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.gf-revbadge--sm {
+  height: 20px;
+}
+
+.gf-revbadge-rev {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  font: var(--type-data);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.02em;
+}
+
+.gf-revbadge--sm .gf-revbadge-rev {
+  font: var(--type-data-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.gf-revbadge-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-left: var(--border-w) solid var(--border-subtle);
+  font: var(--type-micro);
+  letter-spacing: var(--ls-1);
+  text-transform: uppercase;
+}
+
+.gf-revbadge--current {
+  background: var(--wash-success);
+  border-color: var(--wash-success-border);
+  color: var(--text-success);
+}
+
+/* The supersede ramp is reserved for exactly this. A solid fill rather than a
+   wash, because it is the one state that changes what someone builds. */
+.gf-revbadge--superseded {
+  background: var(--fill-supersede);
+  border-color: var(--fill-supersede);
+  color: var(--text-inverse);
+}
+
+.gf-revbadge--superseded .gf-revbadge-label {
+  border-left-color: #00000033;
+}
+
+.gf-revbadge--pending {
+  background: var(--wash-sync);
+  border-color: var(--wash-sync-border);
+  color: var(--text-sync);
+}
+
+.gf-revbadge--void {
+  background: var(--fill-neutral);
+  border-color: var(--border-subtle);
+  color: var(--text-tertiary);
+}
