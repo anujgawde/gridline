@@ -2,10 +2,20 @@ import { useCallback, useEffect, useState } from "react";
 
 import { bus } from "@gridline/platform/bus";
 
+import { SheetProperties, SheetToolbar } from "../chrome";
 import { FullPageRenderer, selectRenderer, TiledRenderer } from "../renderers";
+import type { ViewControls } from "../renderers";
 import { loadSheetIndex, loadSheetSource } from "../sources";
 import type { SheetIndexEntry, SheetSource } from "../sources";
 import type { SheetSurfaceProps } from "./types";
+
+/* The primitives' stylesheet is imported here, inside the exposed module,
+   rather than only from this app's standalone entry. The shell loads
+   SheetSurface over federation and never imports viewer's entry at all, so a
+   stylesheet imported there would be missing exactly when the viewer is running
+   where it matters. */
+import "@gridline/platform/ui.css";
+import "../chrome/chrome.css";
 import "./sheet-surface.css";
 
 interface Ready {
@@ -17,6 +27,9 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
   const [ready, setReady] = useState<Ready | null>(null);
   const [resolved, setResolved] = useState(false);
   const [current, setCurrent] = useState(sheetId);
+  /* Null until a renderer is mounted and has framed a sheet. The toolbar's zoom
+     controls stay disabled rather than absent until then. */
+  const [controls, setControls] = useState<ViewControls | null>(null);
   const renderer = selectRenderer();
 
   /* The address of the set and the sheet-to-page mapping are both fetched, not
@@ -61,6 +74,12 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
     [revision],
   );
 
+  /* Stable, so publishing controls does not re-run the renderer's effect on
+     every render of this component. */
+  const takeControls = useCallback((next: ViewControls) => {
+    setControls(next);
+  }, []);
+
   if (!resolved) {
     return (
       <div className="viewer-surface">
@@ -77,22 +96,35 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
     );
   }
 
+  const entry = ready.index.find((sheet) => sheet.sheetId === current);
+
   return (
-    <div className="viewer-surface">
-      {renderer === "tiled" ? (
-        <TiledRenderer
-          sheetId={current}
-          source={ready.source}
-          onPainted={announce}
-        />
-      ) : (
-        <FullPageRenderer
-          sheetId={current}
-          source={ready.source}
-          index={ready.index}
-          onPainted={announce}
-        />
-      )}
+    <div className="viewer-shell">
+      <div className="viewer-surface">
+        {renderer === "tiled" ? (
+          <TiledRenderer
+            sheetId={current}
+            source={ready.source}
+            onPainted={announce}
+            onControls={takeControls}
+          />
+        ) : (
+          <FullPageRenderer
+            sheetId={current}
+            source={ready.source}
+            index={ready.index}
+            onPainted={announce}
+            onControls={takeControls}
+          />
+        )}
+        <SheetToolbar controls={controls} />
+      </div>
+      <SheetProperties
+        sheetId={current}
+        revision={revision}
+        entry={entry}
+        renderer={renderer}
+      />
     </div>
   );
 }

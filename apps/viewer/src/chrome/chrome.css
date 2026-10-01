@@ -1,0 +1,53 @@
+/* The viewer's own chrome: the overlay toolbar and the properties panel.
+
+   Lengths are tokens. The two exceptions below are both positioning offsets for
+   a floating overlay, and they use spacing tokens rather than raw values. */
+
+.viewer-toolbar-slot {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-6);
+  transform: translateX(-50%);
+  z-index: var(--z-canvas-overlay);
+}
+
+/* ---------- Sheet properties ---------- */
+.viewer-props {
+  margin: 0;
+  padding: var(--space-2) 0;
+}
+
+.viewer-props-row {
+  display: grid;
+  /* The label column is text, so it scales with text. */
+  grid-template-columns: 7.5rem 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--row-h-dense);
+  padding: 0 var(--space-3);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.viewer-props-row:last-child {
+  border-bottom: none;
+}
+
+.viewer-props dt {
+  font: var(--type-micro);
+  letter-spacing: var(--ls-1);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.viewer-props dd {
+  margin: 0;
+  min-width: 0;
+  font: var(--type-body);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.viewer-props-absent {
+  color: var(--text-tertiary);
+  font: var(--type-caption);
+}

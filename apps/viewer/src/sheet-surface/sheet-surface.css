@@ -1,8 +1,22 @@
+/* The viewer's whole slot: the drawing stage, and the panel it owns beside it.
+   The left panel in the mockups is not here and never will be — it is the
+   navigator's, a separate app on its own pipeline. */
+.viewer-shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
 .viewer-surface {
+  /* The positioning context for the overlay toolbar, which floats over the
+     drawing rather than taking space beside it. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   height: 100%;
   padding: var(--space-4);
   background: var(--surface-canvas);
