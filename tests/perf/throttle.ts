@@ -50,6 +50,29 @@ export async function readLongTasks(page: Page): Promise<LongTaskSummary> {
   };
 }
 
+/* The same long tasks, but only those that began after a given point on the
+   page's clock. Interaction is measured on a page that has already loaded a
+   sheet, and sheet loading is where the big tasks are — counting those against
+   a gesture would describe the load, not the gesture. */
+export async function readLongTasksSince(
+  page: Page,
+  sinceMs: number,
+): Promise<LongTaskSummary> {
+  const tasks = await page.evaluate(
+    (since) =>
+      (
+        (window as unknown as Record<string, { start: number; duration: number }[]>)
+          .__longTasks ?? []
+      ).filter((task) => task.start >= since),
+    sinceMs,
+  );
+  return {
+    count: tasks.length,
+    totalMs: Math.round(tasks.reduce((sum, t) => sum + t.duration, 0)),
+    longestMs: Math.round(Math.max(0, ...tasks.map((t) => t.duration))),
+  };
+}
+
 /* The CPU throttle only. The network is throttled by the server, not here.
 
    CDP applies network conditions per target, and a service worker is its own
