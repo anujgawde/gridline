@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { useGestures, ZOOM_STEP } from "../../gestures";
+import type { GestureView } from "../../gestures";
+import type { ViewControls } from "../types";
 
 import type { SheetSource } from "../../sources";
 import { TileCache } from "./tile-cache";
@@ -38,9 +42,29 @@ interface Props {
   sheetId: string;
   source: SheetSource;
   onPainted?: (sheetId: string) => void;
+  /* Handed upward so the viewer's toolbar can drive the view without the
+     toolbar knowing which renderer is mounted. */
+  onControls?: (controls: ViewControls) => void;
 }
 
-export function TiledRenderer({ sheetId, source, onPainted }: Props) {
+/* Centred and scaled so the whole sheet is visible. Shared by the initial open
+   and the toolbar's Fit control, because two copies of this arithmetic would
+   eventually disagree about what "fit" means. */
+function fittedView(index: TileIndex, canvas: HTMLCanvasElement): ViewState {
+  const scale = fitScale(index, canvas.width, canvas.height);
+  return {
+    scale,
+    x: (canvas.width - index.pageWidth * scale) / 2,
+    y: (canvas.height - index.pageHeight * scale) / 2,
+  };
+}
+
+export function TiledRenderer({
+  sheetId,
+  source,
+  onPainted,
+  onControls,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const cacheRef = useRef<TileCache>(null);
@@ -48,7 +72,6 @@ export function TiledRenderer({ sheetId, source, onPainted }: Props) {
   const indexRef = useRef<TileIndex | null>(null);
   const viewRef = useRef<ViewState>({ x: 0, y: 0, scale: 0.1 });
   const frameRef = useRef(0);
-  const dragRef = useRef<{ x: number; y: number } | null>(null);
   const deepRef = useRef<DeepZoomRenderer>(null);
   const deepResultRef = useRef<DeepZoomResult | null>(null);
 
@@ -204,6 +227,40 @@ export function TiledRenderer({ sheetId, source, onPainted }: Props) {
     });
   };
 
+  /* Pan, pinch, momentum and wheel zoom, all from the shared gesture layer.
+
+     The view lives in a ref rather than state: a pointer reports far more often
+     than the display refreshes, and putting each sample through React would
+     queue renders for frames the screen will never show. onChange writes the
+     ref and asks for one draw per frame. */
+  const gestures = useGestures(hostRef, {
+    initial: viewRef.current,
+    onChange: (view: GestureView) => {
+      viewRef.current = view;
+      scheduleDraw();
+    },
+    minScale: MIN_SCALE,
+    maxScale: MAX_SCALE,
+  });
+
+  const controls = useMemo<ViewControls>(
+    () => ({
+      zoomIn: () => gestures.zoomBy(ZOOM_STEP),
+      zoomOut: () => gestures.zoomBy(1 / ZOOM_STEP),
+      fit: () => {
+        const index = indexRef.current;
+        const canvas = canvasRef.current;
+        if (!index || !canvas) return;
+        gestures.setView(fittedView(index, canvas));
+      },
+    }),
+    [gestures],
+  );
+
+  useEffect(() => {
+    onControls?.(controls);
+  }, [controls, onControls]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -243,12 +300,9 @@ export function TiledRenderer({ sheetId, source, onPainted }: Props) {
       canvas.width = host.clientWidth;
       canvas.height = host.clientHeight;
 
-      const scale = fitScale(index, canvas.width, canvas.height);
-      viewRef.current = {
-        scale,
-        x: (canvas.width - index.pageWidth * scale) / 2,
-        y: (canvas.height - index.pageHeight * scale) / 2,
-      };
+      /* Through the controller rather than the ref, so a sheet change also
+         stops any momentum the previous sheet was still coasting with. */
+      gestures.setView(fittedView(index, canvas));
 
       /* The coarse level first, and paint as soon as it lands.
 
@@ -308,46 +362,6 @@ export function TiledRenderer({ sheetId, source, onPainted }: Props) {
   /* The cache outlives a sheet change on purpose — going back to a sheet you
      just left should not re-fetch it. It is released when the renderer goes
      away. */
-  /* Wheel is attached by hand, not through React, because React registers it
-     as a passive listener — preventDefault is ignored there, so the browser
-     scrolls or zooms the page as well as the sheet. Two ticks in, the canvas is
-     no longer under the pointer and the rest of the gesture goes somewhere
-     else. It looked like the zoom hitting a limit. */
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault();
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const px = event.clientX - rect.left;
-      const py = event.clientY - rect.top;
-
-      const view = viewRef.current;
-      const scale = Math.min(
-        MAX_SCALE,
-        Math.max(MIN_SCALE, view.scale * Math.exp(-event.deltaY / 500)),
-      );
-
-      /* Zoom about the pointer: the sheet point under the cursor stays under
-         the cursor. Zooming about the origin is the single most common way a
-         viewer feels wrong. */
-      const ratio = scale / view.scale;
-      viewRef.current = {
-        scale,
-        x: px - (px - view.x) * ratio,
-        y: py - (py - view.y) * ratio,
-      };
-      scheduleDraw();
-    };
-
-    host.addEventListener("wheel", onWheel, { passive: false });
-    return () => host.removeEventListener("wheel", onWheel);
-  }, []);
-
   useEffect(() => {
     const cache = cacheRef.current;
     const deep = deepRef.current;
@@ -382,24 +396,6 @@ export function TiledRenderer({ sheetId, source, onPainted }: Props) {
           ? "1"
           : "0"
       }
-      onPointerDown={(event) => {
-        (event.target as Element).setPointerCapture?.(event.pointerId);
-        dragRef.current = { x: event.clientX, y: event.clientY };
-      }}
-      onPointerMove={(event) => {
-        const from = dragRef.current;
-        if (!from) return;
-        viewRef.current = {
-          ...viewRef.current,
-          x: viewRef.current.x + (event.clientX - from.x),
-          y: viewRef.current.y + (event.clientY - from.y),
-        };
-        dragRef.current = { x: event.clientX, y: event.clientY };
-        scheduleDraw();
-      }}
-      onPointerUp={() => {
-        dragRef.current = null;
-      }}
     >
       <canvas ref={canvasRef} className="viewer-canvas" />
       {paintedSheet !== sheetId && (

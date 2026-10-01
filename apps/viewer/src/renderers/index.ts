@@ -2,6 +2,7 @@ export type {
   RendererName,
   RenderState,
   SheetRendererProps,
+  ViewControls,
   Viewport,
 } from "./types";
 export { FullPageRenderer } from "./fullpage";

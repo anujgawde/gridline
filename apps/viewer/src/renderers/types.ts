@@ -18,3 +18,16 @@ export interface SheetRendererProps {
 }
 
 export type RenderState = "loading" | "painted" | "failed";
+
+/* What the viewer's chrome can ask of whichever renderer is mounted.
+
+   The toolbar talks to this rather than to a renderer, so the zoom buttons work
+   the same against the naive renderer and the tiled one, and a button press
+   goes through the same code path a pinch does. */
+export interface ViewControls {
+  zoomIn(): void;
+  zoomOut(): void;
+  /* Frames the whole sheet. Named for what the control says, not for the
+     arithmetic behind it, which differs between the two renderers. */
+  fit(): void;
+}

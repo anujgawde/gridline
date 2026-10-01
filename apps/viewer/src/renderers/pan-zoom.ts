@@ -1,57 +1,54 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { RefObject } from "react";
 
-import type { Viewport } from "./types";
+import { useGestures, ZOOM_STEP } from "../gestures";
+import type { GestureView } from "../gestures";
+import type { Viewport, ViewControls } from "./types";
 
-/* Pan and zoom for the naive renderer, over Pointer Events.
+/* Pan and zoom for the naive renderer.
 
-   Deliberately the simple version: the page is already rasterized at one
-   resolution, so moving and scaling it is a CSS transform on that bitmap. No
-   re-rasterization at the new scale, which is why zooming in goes soft — the
-   honest trade the naive approach makes, and one of the things tiling fixes.
+   The gesture layer is shared with the tiled renderer, deliberately. If the two
+   renderers handled input differently, the measured difference between them
+   would include the difference between two input implementations — and the
+   claim is about rendering. Same gestures, same momentum, same limits; only
+   what happens to the pixels differs.
 
-   The hand-rolled gesture layer with momentum and pinch is step 1.5. This is
-   only enough to make panning and zooming measurable, because frame times
-   during interaction cannot be recorded against a renderer that does not move. */
+   What this renderer still does naively is the drawing: the page is rasterized
+   once at one resolution and then moved and scaled as a bitmap, so zooming in
+   goes soft. That is the honest trade, and one of the things tiling fixes. */
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 8;
 const INITIAL: Viewport = { x: 0, y: 0, scale: 0.25 };
 
-export function usePanZoom(resetKey: string) {
+export function usePanZoom(
+  resetKey: string,
+  surfaceRef: RefObject<HTMLElement | null>,
+): { viewport: Viewport; controls: ViewControls } {
   const [viewport, setViewport] = useState<Viewport>(INITIAL);
-  const dragging = useRef<{ x: number; y: number } | null>(null);
+
+  const onChange = useCallback((next: GestureView) => setViewport(next), []);
+
+  const gestures = useGestures(surfaceRef, {
+    initial: INITIAL,
+    onChange,
+    minScale: MIN_SCALE,
+    maxScale: MAX_SCALE,
+  });
 
   // A new sheet starts framed rather than wherever the last one was left.
-  useEffect(() => setViewport(INITIAL), [resetKey]);
+  useEffect(() => {
+    gestures.setView(INITIAL);
+  }, [resetKey, gestures]);
 
-  const onPointerDown = useCallback((event: React.PointerEvent) => {
-    (event.target as Element).setPointerCapture?.(event.pointerId);
-    dragging.current = { x: event.clientX, y: event.clientY };
-  }, []);
+  const controls = useMemo<ViewControls>(
+    () => ({
+      zoomIn: () => gestures.zoomBy(ZOOM_STEP),
+      zoomOut: () => gestures.zoomBy(1 / ZOOM_STEP),
+      fit: () => gestures.setView(INITIAL),
+    }),
+    [gestures],
+  );
 
-  const onPointerMove = useCallback((event: React.PointerEvent) => {
-    const from = dragging.current;
-    if (!from) return;
-    const dx = event.clientX - from.x;
-    const dy = event.clientY - from.y;
-    dragging.current = { x: event.clientX, y: event.clientY };
-    setViewport((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
-  }, []);
-
-  const onPointerUp = useCallback(() => {
-    dragging.current = null;
-  }, []);
-
-  const onWheel = useCallback((event: React.WheelEvent) => {
-    const factor = Math.exp(-event.deltaY / 500);
-    setViewport((v) => ({
-      ...v,
-      scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor)),
-    }));
-  }, []);
-
-  return {
-    viewport,
-    bind: { onPointerDown, onPointerMove, onPointerUp, onWheel },
-  };
+  return { viewport, controls };
 }

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SheetIndexEntry, SheetSource } from "../sources";
 import { combinedUrl } from "../sources";
 import { usePanZoom } from "./pan-zoom";
-import type { RenderState } from "./types";
+import type { RenderState, ViewControls } from "./types";
 
 /* The naive renderer, built honestly rather than as a straw man.
    
@@ -31,6 +31,9 @@ interface Props {
   source: SheetSource;
   index: SheetIndexEntry[];
   onPainted?: (sheetId: string) => void;
+  /* Handed upward so the viewer's toolbar can drive whichever renderer is
+     mounted without knowing which one that is. */
+  onControls?: (controls: ViewControls) => void;
 }
 
 async function loadPdfjs() {
@@ -47,8 +50,17 @@ async function loadPdfjs() {
   return pdfjs;
 }
 
-export function FullPageRenderer({ sheetId, source, index, onPainted }: Props) {
+export function FullPageRenderer({
+  sheetId,
+  source,
+  index,
+  onPainted,
+  onControls,
+}: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  /* The gesture target is the surface, not the transform target: scaling the
+     element the listeners are on would scale the coordinates they report. */
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<Awaited<ReturnType<typeof openDocument>> | null>(null);
   /* Every page ever rendered, kept. No budget, no eviction. */
   const cacheRef = useRef(new Map<number, HTMLCanvasElement>());
@@ -56,7 +68,11 @@ export function FullPageRenderer({ sheetId, source, index, onPainted }: Props) {
   const [sheetCount, setSheetCount] = useState(0);
   const [pixelBytes, setPixelBytes] = useState(0);
 
-  const { viewport, bind } = usePanZoom(sheetId);
+  const { viewport, controls } = usePanZoom(sheetId, surfaceRef);
+
+  useEffect(() => {
+    onControls?.(controls);
+  }, [controls, onControls]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +164,7 @@ export function FullPageRenderer({ sheetId, source, index, onPainted }: Props) {
       data-pages-held={cacheRef.current.size}
       data-pixels-mb={Math.round((pixelBytes / 1024 / 1024) * 10) / 10}
       data-sheet-count={sheetCount}
-      {...bind}
+      ref={surfaceRef}
     >
       <div
         ref={hostRef}
