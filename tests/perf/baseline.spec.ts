@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
+import { BUDGETS, isGated } from "./budgets";
 import { format, summarize } from "./stats";
 import {
   applyProfile,
@@ -18,10 +19,10 @@ import {
    the slow path is no longer what runs, and nobody rebuilds it to recover a
    "before". Everything here is therefore recorded before any optimisation lands.
 
-   These are readings, not gates. Nothing in this file asserts a budget — the
-   budgets in buildplan.md §7 become failing assertions in 1.6, once there is an
-   optimised path to hold to them. Asserting them now would only encode how slow
-   the naive version happens to be. */
+   `fullpage` is measured and never graded. Asserting a budget against it would
+   only encode how slow the naive version happens to be, and it ships
+   permanently precisely so the slow path stays runnable. `tiled` is gated
+   against budgets.ts. */
 
 /* Three rather than five: a cold start now includes transferring a 42 MB
    document over a paced link, so each run costs minutes. The spread on this
@@ -152,7 +153,7 @@ test(`${RENDERER} renderer — cold start, ${RUNS} runs`, async ({ browser }) =>
 
   await mkdir("test-results", { recursive: true });
   await writeFile(
-    `test-results/phase1-baseline-${RENDERER}.json`,
+    `test-results/viewer-baseline-${RENDERER}.json`,
     `${JSON.stringify(reading, null, 2)}\n`,
   );
 
@@ -161,7 +162,7 @@ test(`${RENDERER} renderer — cold start, ${RUNS} runs`, async ({ browser }) =>
     const unit = key === "heapUsedMb" ? "MB" : "ms";
     console.log(`    ${key.padEnd(28)} ${format(stat, unit)}`);
   }
-  console.log(`\n  written to test-results/phase1-baseline-${RENDERER}.json\n`);
+  console.log(`\n  written to test-results/viewer-baseline-${RENDERER}.json\n`);
 
   /* The only assertions: something was actually measured, on every run. A run
      where the sheet never painted would otherwise write a file of nulls. */
@@ -170,4 +171,19 @@ test(`${RENDERER} renderer — cold start, ${RUNS} runs`, async ({ browser }) =>
      asserting on a measure only one renderer emits fails the other one for
      doing its job. */
   expect(reading.metrics.sheetShown.median).not.toBeNull();
+
+  if (!isGated(RENDERER)) return;
+
+  expect(
+    reading.metrics.coldSheetOnCanvas.median,
+    "cold start is over budget — see tests/perf/budgets.ts",
+  ).toBeLessThanOrEqual(BUDGETS.baseline.coldSheetOnCanvasMs);
+  expect(
+    reading.metrics.mainThreadBlocked.median,
+    "main-thread block during load is over budget — see tests/perf/budgets.ts",
+  ).toBeLessThanOrEqual(BUDGETS.baseline.mainThreadBlockedMs);
+  expect(
+    reading.metrics.longestTask.median,
+    "longest task during load is over budget — see tests/perf/budgets.ts",
+  ).toBeLessThanOrEqual(BUDGETS.baseline.longestTaskMs);
 });

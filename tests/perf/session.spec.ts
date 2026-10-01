@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 import { panAndZoom, startFrameRecording, stopFrameRecording } from "./frames";
+import { BUDGETS, isGated } from "./budgets";
 import { format, summarize } from "./stats";
 import {
   applyProfile,
@@ -34,12 +35,10 @@ const RENDERER = process.env.PERF_RENDERER ?? "tiled";
    for almost every step and only load-bearing for the first. */
 const SHEET_TIMEOUT_MS = Number(process.env.PERF_SHEET_TIMEOUT ?? 420_000);
 
-/* A marker on the memory curve, not a pass mark. The 400 MB figure in
-   buildplan.md §7 was written before any code existed and nothing was measured
-   to arrive at it. Recording which sheet the curve crosses it is useful;
-   grading against it would be grading against an invented number. Real budgets
-   get set from the optimised implementation's behaviour, with headroom, once
-   there is one. */
+/* A marker on the memory curve, not the pass mark. The 400 MB figure was
+   written before any code existed, so recording which sheet the curve crosses
+   it stays useful while grading against it never was. The gate that does apply
+   is in budgets.ts and comes from a measurement of this renderer. */
 const MEMORY_MARKER_MB = 400;
 
 interface SheetReading {
@@ -269,7 +268,7 @@ test(`${RENDERER} renderer — a session across the set`, async ({
 
   await mkdir("test-results", { recursive: true });
   await writeFile(
-    `test-results/phase1-session-${RENDERER}.json`,
+    `test-results/viewer-session-${RENDERER}.json`,
     `${JSON.stringify(result, null, 2)}\n`,
   );
 
@@ -291,12 +290,35 @@ test(`${RENDERER} renderer — a session across the set`, async ({
   if (failedAt) {
     console.log(`    first failure at sheet      ${failedAt.ordinal} (${failedAt.sheetId}) — ${failedAt.failed ?? `past ${MEMORY_MARKER_MB} MB`}`);
   }
-  console.log(`\n  written to test-results/phase1-session-${RENDERER}.json\n`);
+  console.log(`\n  written to test-results/viewer-session-${RENDERER}.json\n`);
 
-  /* A session that painted nothing measured nothing. Everything beyond that is
-     recorded rather than asserted — the naive renderer failing this is the
-     result, not a broken test. */
+  /* A session that painted nothing measured nothing. */
   expect(painted.length).toBeGreaterThan(0);
+
+  /* The naive renderer failing any of the below is the result, not a broken
+     test, so it is measured and never graded. */
+  if (!isGated(RENDERER)) return;
+
+  expect(
+    painted.length,
+    "the session did not paint every sheet — see tests/perf/budgets.ts",
+  ).toBe(SHEETS);
+  expect(
+    result.sheetChange.lastTen.median,
+    "sheet change is over budget — see tests/perf/budgets.ts",
+  ).toBeLessThanOrEqual(BUDGETS.session.sheetChangeMs);
+  expect(
+    result.revisit.median,
+    "returning to a visited sheet is over budget — see tests/perf/budgets.ts",
+  ).toBeLessThanOrEqual(BUDGETS.session.revisitMs);
+  expect(
+    result.memoryMb.peak,
+    "peak memory over the session is over budget — see tests/perf/budgets.ts",
+  ).toBeLessThanOrEqual(BUDGETS.session.peakMemoryMb);
+  expect(
+    result.worstFrame.lastTen.median,
+    "worst frame late in the session is over budget — see tests/perf/budgets.ts",
+  ).toBeLessThanOrEqual(BUDGETS.session.worstFrameMs);
 });
 
 function total(reading?: SheetReading) {
