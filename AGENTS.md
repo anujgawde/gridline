@@ -216,7 +216,13 @@ Every number in this repo must trace to a committed Playwright spec anyone can
 re-run. **Never write a performance number into a README, ADR, or perf doc
 that wasn't measured on this machine.** Leave a placeholder instead.
 
-Budgets are CI-enforced gates, not aspirations.
+Budgets are gates, not aspirations, and they live in `tests/perf/budgets.ts`.
+Each one is a measurement from this machine plus headroom, never a figure
+somebody hoped for — a gate catches a change for the worse, so it can only be
+set from a known-good reading. They are asserted by the perf specs and run by
+hand today; there is no pipeline running them yet. Only the optimised renderer
+is graded: the naive one ships permanently for comparison and fails every gate
+by construction.
 
 ## Reference material
 

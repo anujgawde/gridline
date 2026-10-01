@@ -113,24 +113,24 @@ The output is not committed — the seed is the reproducibility mechanism, so th
 
 ## Rendering, measured
 
-Every figure here comes from a committed Playwright spec, taken on one machine. The full reading, including what these numbers do not prove, is in [`docs/perf/phase1.md`](docs/perf/phase1.md).
+Every figure here comes from a committed Playwright spec, taken on one machine. The full reading, including what these numbers do not prove, is in [`docs/perf/viewer.md`](docs/perf/viewer.md).
 
 **The document is one PDF of 1,500 pages, 41.7 MB.** That is what a drawing set is: jurisdictions accept submittals up to 500 MB and only permit splitting by discipline above 100 MB, so what reaches someone on site is a single file. **The profile is a 4x CPU throttle and a link paced at 1.6 Mbit/s with a 562 ms round trip**, applied by the static server rather than by the browser, because CDP applies network conditions per target and a service worker is its own target. Both renderers ship permanently, selected by `?renderer=`, so the comparison is a URL rather than a commit someone has to check out.
 
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
-| First sheet on screen, cold | 225.5 s | **8.45 s** |
-| Main-thread block during load | 1120 ms | **133 ms** |
-| Longest single task | 875 ms | **87 ms** |
-| Peak memory over a 50-sheet session | 2230 MB | **210 MB** |
-| Sheet change | **210 ms** | 1321 ms |
-| Return to a visited sheet | not measured | **47 ms** |
+| First sheet on screen, cold | 225.5 s | **8.46 s** |
+| Main-thread block during load | 1120 ms | **66 ms** |
+| Longest single task | 875 ms | **66 ms** |
+| Peak memory over a 50-sheet session | 2230 MB | **259 MB** |
+| Sheet change | **210 ms** | 1312 ms |
+| Return to a visited sheet | not measured | **81 ms** |
 
 `fullpage` parses the whole document on the main thread before drawing anything, so its time to first sheet scales with the size of the document, and it retains every page it renders, climbing 43.6 MB a sheet to 2.18 GB over fifty. Of its 225.5 seconds, 217.7 is the document arriving; rasterizing the page someone actually asked for takes 278 ms.
 
 `tiled` fetches only the tiles covering the viewport from a pyramid built offline by `tools/tiler`, so its time scales with the size of the screen instead. Tiles are held as decoded bitmaps in a byte-budgeted cache that evicts least-recently-used entries and closes the bitmaps it drops, since canvas pixels live outside the JS heap and are invisible to both `JSHeapUsedSize` and `performance.memory`.
 
-**The slower sheet change is the real cost, not a rounding error.** `fullpage` is quick between sheets because it already paid for all of them at once. A session longer than about 170 sheets would spend more time waiting under `tiled`. Tiled memory is also still growing at about 4 MB a sheet when the session ends at fifty, below the 256 MB budget where eviction begins, so the plateau is argued rather than shown.
+**The slower sheet change is the real cost, not a rounding error.** `fullpage` is quick between sheets because it already paid for all of them at once. A session longer than about 170 sheets would spend more time waiting under `tiled`. Tiled memory is also still growing at about 5 MB a sheet when the session ends at fifty, right at the edge of the 256 MB budget where eviction begins, so the plateau is argued rather than shown.
 
 ## Status
 

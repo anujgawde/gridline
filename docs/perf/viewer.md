@@ -1,4 +1,4 @@
-# Phase 1 — viewer rendering, before and after
+# Viewer — rendering and interaction, before and after
 
 The starting numbers for sheet rendering, and what they became.
 
@@ -90,7 +90,7 @@ build, so a number taken from it is a number about the bundler.
 A cold start now includes a 42 MB transfer at 205 KB/s, so a full run takes
 around twenty minutes. That is the measurement, not a problem with it.
 
-Each run writes `test-results/phase1-baseline.json`.
+Each run writes `test-results/viewer-baseline-<renderer>.json`.
 
 ## The document
 
@@ -122,16 +122,22 @@ failure, and the sheet number it happens at, is the result.
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
 | Document open (1,500 pages) | 217 s | — never opened |
-| First sheet on screen | 225 s | **8.45 s** |
-| Sheet change, first ten (median) | 210 ms (174–224930) | 1321 ms (1301–7970) |
-| Sheet change, last ten (median) | 224 ms (181–251) | 1324 ms (1301–1338) |
-| **Returning to a visited sheet** | not measured | **47 ms** (40–52) |
-| Worst frame, first ten | 25 ms (23–35) | 22 ms (18–34) |
-| Worst frame, last ten | 24 ms (22–27) | 22 ms (20–29) |
-| Memory at sheet 1 | 59.9 MB | 13.1 MB |
-| **Memory peak** | **2230 MB** (2180 MB canvas) | **210 MB** (201 MB tiles) |
+| First sheet on screen | 225 s | **9.02 s** |
+| Sheet change, first ten (median) | 210 ms (174–224930) | 1316 ms (1307–8509) |
+| Sheet change, last ten (median) | 224 ms (181–251) | 1312 ms (1309–1319) |
+| **Returning to a visited sheet** | not measured | **81 ms** (77–83) |
+| Worst frame, first ten | 25 ms (23–35) † | 30 ms (28–32) |
+| Worst frame, last ten | 24 ms (22–27) † | 30 ms (28–31) |
+| Memory at sheet 1 | 59.9 MB | 13.5 MB |
+| **Memory peak** | **2230 MB** (2180 MB canvas) | **259 MB** (250 MB tiles) |
 | Memory passes 400 MB at | **sheet 9** | never |
 | Sheets painted of 50 | 50 / 50 | 50 / 50 |
+
+† The `fullpage` frame rows were taken before the shared gesture layer landed
+and have not been re-run. Every other `fullpage` figure here is driven by the
+42 MB transfer, main-thread parsing, or retained pages — none of which the input
+layer or the panel touches — so those stand. The `tiled` column was re-taken in
+full afterwards.
 
 ### What the two renderers do differently
 
@@ -146,12 +152,12 @@ device stops it.
 
 | | change |
 |---|---|
-| First sheet on screen | 225 s → 8.45 s, **27x faster** |
-| Main-thread block on load | 1120 ms → 133 ms, **8x less** |
-| Longest single task | 875 ms → 87 ms, **10x shorter** |
-| Peak memory over 50 sheets | 2230 MB → 210 MB, **11x less** |
-| Sheet change | 210 ms → 1321 ms, **6x slower** |
-| Returning to a visited sheet | — → 47 ms |
+| First sheet on screen | 225 s → 9.02 s, **25x faster** |
+| Main-thread block on load | 1120 ms → 66 ms, **17x less** |
+| Longest single task | 875 ms → 66 ms, **13x shorter** |
+| Peak memory over 50 sheets | 2230 MB → 259 MB, **9x less** |
+| Sheet change | 210 ms → 1312 ms, **6x slower** |
+| Returning to a visited sheet | — → 81 ms |
 
 **The slower sheet change is real and is the honest cost.** Naive is quick between
 sheets because it already paid for all of them; every page is in memory. Tiled
@@ -160,17 +166,17 @@ everything once. 225 seconds of nothing versus 1.3 seconds per sheet is a trade,
 not a free win, and a session of more than about 170 sheets would spend more time
 waiting under tiled than under naive.
 
-**Returning to a sheet costs 47 ms**, because nothing is fetched at all: the tile
+**Returning to a sheet costs 81 ms**, because nothing is fetched at all: the tile
 index is memoized, the coarse levels are pinned in the cache, and set content is
 served `immutable` so anything else is in the browser's cache. That row does not
 exist for naive because a revisit there is simply a cache hit in RAM.
 
-**One thing the run does not prove.** Tiled memory is still growing at about 4 MB
-a sheet — 11x slower than naive, but linear. It is bounded: the cache budget is
-256 MB, so eviction starts near sheet 64 and the curve should flatten there. This
-session stopped at 50 and 201 MB, so **the plateau is argued rather than shown**.
-A longer run is what would settle it, and until then the memory claim is "much
-slower growth", not "flat".
+**One thing the run does not prove.** Tiled memory is still growing at about 5 MB
+a sheet — 9x slower than naive, but linear. It is bounded: the cache budget is
+256 MB, so eviction starts near sheet 51 and the curve should flatten there. This
+session stopped at 50 and 250 MB, which is right at that edge, so **the plateau is
+argued rather than shown**. A longer run is what would settle it, and until then
+the memory claim is "much slower growth", not "flat".
 
 ### On measuring memory
 
@@ -204,13 +210,13 @@ range in brackets, each run in a fresh browser context so the cache is empty.
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
 | Document open (42 MB over the link) | 217.7 s | — never opened |
-| **First sheet on screen** | **225.5 s** | **8.45 s** (8439–9017) |
+| **First sheet on screen** | **225.5 s** | **8.46 s** (8449–8569) |
 | Rasterizing one page | 278 ms (276–305) | — no PDF in the browser |
-| Main-thread block during load | 1120 ms (1037–1190) | **133 ms** (87–150) |
-| Longest single task | 875 ms (872–879) | **87 ms** (76–87) |
-| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | 4028 ms (3996–4144) |
-| Viewer's own share of the cold load | — | 1235 ms (1232–1253) |
-| JS heap after first sheet | 21 MB | 7 MB |
+| Main-thread block during load | 1120 ms (1037–1190) | **66 ms** (63–158) |
+| Longest single task | 875 ms (872–879) | **66 ms** (63–93) |
+| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | 3968 ms (3964–4112) |
+| Viewer's own share of the cold load | — | 1239 ms (1235–1248) |
+| JS heap after first sheet | 21 MB | 8 MB |
 
 Three runs landed within 37 ms of each other (225539–225576). That is not
 precision, it is a measurement dominated by a fixed transfer: 42 MB at a fixed
@@ -242,6 +248,66 @@ main-thread work during a load where, for `fullpage`, parsing happens on the mai
 thread by construction. Both columns are measured the same way.
 
 
+## Interaction
+
+Taken with `tests/perf/interaction.spec.ts` at 4x CPU and 1.6 Mbit/s, median of
+five runs, on a sheet that has already finished loading. `tiled` only — the
+gesture layer is shared by both renderers, so measuring it twice would measure
+the same code.
+
+Three scenarios, because one gesture does not answer one question. `pan` never
+changes the scale, so no tile is ever requested and it is the input path alone.
+`zoomSteady` swings a pinch in and out inside one band of scale, where the tiles
+are already decoded. `zoomDeepening` grows a pinch the whole way into levels that
+have not been fetched — what someone does to read a detail.
+
+| | `pan` | `zoomSteady` | `zoomDeepening` |
+|---|---|---|---|
+| Input to paint, event timing median | 40 ms | **32 ms** | 64 ms |
+| Input to paint, event timing p95 | 40 ms | 64 ms | 64 ms |
+| Input to paint, settle median | — | 60 ms | 100 ms |
+| Input to paint, settle p95 | — | 75 ms | 118 ms |
+| Frame interval p95 | 26 ms | 33 ms | 52 ms |
+| Worst frame interval | 27 ms | 36 ms | **54 ms** |
+| Main thread blocked | **0 ms** | **0 ms** | 358 ms |
+| Longest single task | 0 ms | 0 ms | 54 ms |
+
+**The gesture layer costs nothing measurable; fetching new detail costs
+everything.** Panning and zooming inside cached scale block the main thread for
+0 ms across the whole gesture, and no frame exceeds 36 ms. The moment a pinch
+crosses into levels that have not been fetched, blocking goes to 358 ms, the
+worst frame crosses the 50 ms long-task line, and input to paint roughly doubles.
+Every interaction cost in this app is tile work, not input handling.
+
+**Against the three budgets.** Input to paint is 32 ms at the median when the
+tiles are there, which is exactly the budget and nothing to spare; it is 64 ms
+when they are not. Frame intervals miss 16.7 ms in every scenario — 26 ms at p95
+while panning is about 38 frames a second, not 60. The 50 ms long-task line is
+met everywhere except `zoomDeepening`, which exceeds it at 54 ms.
+
+So: responsive while it has what it needs, and visibly not while it is fetching.
+That is the same shape as the sheet-change cost in the session table, and it has
+the same cause.
+
+### Two things to know before reading these numbers
+
+**Input to paint is measured two ways and they disagree, deliberately.** Event
+timing is the Event Timing API, which is what INP is built from and what reports
+the span from the event's own timestamp to the next paint. It rounds durations to
+8 ms, so against a 32 ms budget it has four buckets — every figure in those rows
+is a multiple of 8 because of that, not because the app is quantised. The settle
+rows are finer and pair each input with the moment the renderer's reported scale
+changes in the DOM, which is past paint and includes a React render. Settle
+therefore over-states and event timing under-resolves; the real figure is between
+them, and both are recorded so that is visible rather than hidden inside one
+chosen number.
+
+**The input rate is the harness's, not a device's.** Playwright dispatches each
+move over a round trip, so these describe how the app responds to a stream of
+events rather than what a particular tablet's digitiser would deliver. Frame
+gaps are unaffected — the recorder's own loop runs independently — but the
+gesture durations are not a device measurement.
+
 ## Budgets
 
 Three, and only three. Each is a physical fact about displays and attention, not
@@ -253,19 +319,37 @@ a preference:
 | Frame | 16.7 ms | One frame at 60 Hz — what "smooth" physically means |
 | Input to paint | 32 ms | Two frames, where input stops feeling connected to response |
 
-Everything else is recorded, not graded. Budgets come from evidence: measure the
-naive implementation, build the optimised one, measure again, then set gates from
-the optimised numbers with headroom. Where to put a gate is unknowable until the
-code's real behaviour is known. The 400 MB figure in the session table is a
-marker on the memory curve, not a pass mark.
+Those three are what "good" means. They are references, not gates, and this app
+does not meet all of them: frame intervals miss 16.7 ms in every scenario, and
+input to paint only reaches 32 ms when the tiles it needs are already decoded.
+Both are recorded above rather than rounded away.
+
+**The gates are a separate thing, and they are in `tests/perf/budgets.ts`.** Each
+is a measurement from this machine plus 25% headroom, so a real regression trips
+it and an ordinary noisy run does not. They run against `tiled` only; `fullpage`
+ships permanently so the comparison stays a URL anyone can open, and it fails all
+of them by construction, which is what it is for.
+
+The distinction matters because a gate set from measurement is green the day it
+is written. **A passing gate is not evidence this app is fast** — it is evidence
+nothing got worse. The claim that it performs well is made by the before/after
+tables above, which come from a different source and a different argument.
+
+Two gates are not derived that way. Where the measurement was zero, a multiplier
+yields zero and any single long task would fail the run, so those use an absolute
+50 ms — the definition of a long task, and the only line in the file that is a
+physical fact rather than an observation.
+
+The 400 MB figure in the session table remains a marker on the memory curve
+rather than the pass mark; the memory gate is 324 MB, from the 259 MB measured.
 
 ## To be measured
 
 | What | Status |
 |---|---|
-| Pinch-zoom input to paint | Blocked on the gesture layer (1.5) |
+| Pinch-zoom input to paint | Measured — see Interaction above |
 | Zoom image quality past rasterized resolution | Not started |
-| Warm start from a persistent cache | Blocked on Phase 2 |
-| Tile cache hit rate | Blocked on Phase 2 |
+| Warm start from a persistent cache | Needs the persistent tile cache |
+| Tile cache hit rate | Needs the in-app counters that expose it |
 | Bundle size per remote | Not started |
 | Slow 3G and LTE connection profiles | Not started |
