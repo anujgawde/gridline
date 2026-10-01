@@ -8,8 +8,10 @@ architecture thesis about rendering, memory, and microfrontend boundaries.
 Pre-alpha. Two workspace packages exist:
 
 - **`packages/platform`** — `@gridline/platform`. Design tokens as CSS custom
-  properties, and the event bus with its zod contracts. No UI primitives yet,
-  and no React dependency.
+  properties, the event bus with its zod contracts, and the UI primitives under
+  `./ui` with their stylesheet at `./ui.css`. Takes React, so that the
+  primitives can be components; the version comes from the catalog like every
+  other copy.
 - **`apps/shell`** — `@gridline/shell`. Rspack + React. Renders the chrome from
   the tokens and is the Module Federation host. Loads the viewer's sheet surface
   at runtime and shows active-sheet state published on the bus.
@@ -30,8 +32,9 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: UI primitives in `platform`, a pipeline per app, the navigator
-and compare remotes.
+Still to build: a pipeline per app, the navigator and compare remotes, and the
+primitives the navigator needs — the set in `platform` today is the one the
+viewer calls, not a full library.
 
 ## Commands
 
@@ -47,8 +50,8 @@ and compare remotes.
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 3 packages; `test` runs in `platform` and
-`setgen`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
+`build` and `typecheck` run in 3 packages; `test` runs in `platform`, `setgen`,
+`tiler` and `viewer`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
 outside any package's `dist/`, and takes about 20 seconds, so it has no business
 in a build graph.
 
@@ -181,6 +184,19 @@ These are not open to convenience:
   starts — with no error any boundary can catch. Declared remotes use a
   `remoteEntry.js` entry, which resolves on first use. Manifests are for remotes
   registered at runtime, after the shell has rendered.
+- **Only modules that hold state in module scope are federation singletons.**
+  The bus is shared because it keeps its subscriber map there, and two copies
+  are two unconnected mailboxes. UI primitives hold no state, so each app
+  bundles its own copy — duplication costs bytes, while sharing them would make
+  every primitive a version agreement four apps have to land together. Share the
+  minimum; a shared library is a coordinated release.
+- **Chrome ownership follows the deploy-cadence test, not visual position.** A
+  control drawn over the viewer's canvas can still belong to the shell, and the
+  question that settles it is whether adding a feature to one app would force
+  another to ship. The viewer's tools are in the canvas overlay it owns; the
+  shell's rail launches other apps and so never changes when a viewer tool is
+  added. A screen mockup composes all four apps at once and respects none of
+  these boundaries — split it by owner before building from it.
 - **Shared modules must name subpaths explicitly.** `shared` matches the import
   as written, so `react-dom` does not cover `react-dom/client`, and a package
   does not cover its own subpaths. Use a trailing-slash prefix key. Getting this
