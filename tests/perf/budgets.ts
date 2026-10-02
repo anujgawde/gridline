@@ -35,7 +35,8 @@ export const HEADROOM = 1.25;
 export const BUDGETS = {
   /* Cold start. Median of 3 runs, 4x CPU / 1.6 Mbit/s. */
   baseline: {
-    // 8461 ms measured (8449–8569)
+    /* 8461 ms measured (8449–8569). Later runs have read as high as 9004, so the
+       spread is wider than the first three suggested; the gate still clears it. */
     coldSheetOnCanvasMs: 10_600,
     /* 66 ms measured, but the spread was 63–158. Set from the worst reading,
        because 25% over the median would sit under a run we actually saw. */
@@ -49,10 +50,23 @@ export const BUDGETS = {
   session: {
     // 1312 ms measured
     sheetChangeMs: 1640,
-    // 81 ms measured
-    revisitMs: 101,
-    // 259 MB measured
-    peakMemoryMb: 324,
+    /* 104 ms measured, and set from that rather than from the median.
+
+       Revisit is bimodal since the pinned coarse tiles gained a ceiling. A sheet
+       still inside the pinned budget repaints from memory in ~73 ms; one past it
+       refetches from the HTTP cache and decodes, ~102-104 ms. The spec samples
+       three sheets without knowing which side of the ceiling they fall on, so its
+       median swings between the two populations depending on the draw. A gate on
+       that median has to clear the slower population or it fails on a sample that
+       happened to pick older sheets.
+
+       Readings behind it: 102, 104, 104 past the ceiling; 73, 93 inside it. */
+    revisitMs: 130,
+    /* 173 MB measured over 140 sheets, 171 MB over 50 — set from the worse of
+       the two. Was 324, from a 259 MB reading taken while memory was still
+       climbing unbounded; pixels now plateau at the 160 MB pinned budget from
+       sheet 33 onward, so the old gate would pass a 1.9x regression. */
+    peakMemoryMb: 216,
     // 30 ms measured
     worstFrameMs: 38,
   },
