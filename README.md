@@ -119,18 +119,24 @@ Every figure here comes from a committed Playwright spec, taken on one machine. 
 
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
-| First sheet on screen, cold | 225.5 s | **8.46 s** |
+| First sheet on screen, cold | 225.5 s | **8.45 s** |
 | Main-thread block during load | 1120 ms | **66 ms** |
 | Longest single task | 875 ms | **66 ms** |
-| Peak memory over a 50-sheet session | 2230 MB | **259 MB** |
-| Sheet change | **210 ms** | 1312 ms |
-| Return to a visited sheet | not measured | **81 ms** |
+| Peak memory over a 50-sheet session | 2230 MB | **171 MB** |
+| Sheet change | **210 ms** | 1306 ms |
+| Return to a visited sheet | not measured | **98 ms** |
 
 `fullpage` parses the whole document on the main thread before drawing anything, so its time to first sheet scales with the size of the document, and it retains every page it renders, climbing 43.6 MB a sheet to 2.18 GB over fifty. Of its 225.5 seconds, 217.7 is the document arriving; rasterizing the page someone actually asked for takes 278 ms.
 
 `tiled` fetches only the tiles covering the viewport from a pyramid built offline by `tools/tiler`, so its time scales with the size of the screen instead. Tiles are held as decoded bitmaps in a byte-budgeted cache that evicts least-recently-used entries and closes the bitmaps it drops, since canvas pixels live outside the JS heap and are invisible to both `JSHeapUsedSize` and `performance.memory`.
 
-**The slower sheet change is the real cost, not a rounding error.** `fullpage` is quick between sheets because it already paid for all of them at once. A session longer than about 170 sheets would spend more time waiting under `tiled`. Tiled memory is also still growing at about 5 MB a sheet when the session ends at fifty, right at the edge of the 256 MB budget where eviction begins, so the plateau is argued rather than shown.
+The cache has two tiers. Deep tiles are evicted least-recently-used against a 256 MB budget; the coarse levels that let a revisited sheet repaint immediately are held back from that, within a 160 MB ceiling of their own, and are evicted a whole sheet at a time — four of a sheet's five coarse tiles paints a sheet with a hole in it, which is worse than one that paints late. That ceiling is expressed in bytes rather than sheets because a sheet's coarse cost is its geometry: five tiles for any standard landscape size, eight for portrait.
+
+**The slower sheet change is the real cost, not a rounding error.** `fullpage` is quick between sheets because it already paid for all of them at once. A session longer than about 170 sheets would spend more time waiting under `tiled`.
+
+**Tiled memory is flat, measured over 140 sheets.** It climbs 5 MB a sheet to sheet 32, then holds at exactly 160 MB for the remaining 107 — peak 173 MB at sheet 140 against 171 MB at sheet 50, every sheet painted. Memory is bounded by the budget rather than by how many sheets someone opens, which is the claim a drawing set of 1,500 sheets actually requires.
+
+The revisit figure is a median across two populations: a sheet still holding its coarse tiles repaints from memory in about 72 ms, while one past the ceiling refetches them from the browser's cache and decodes, at about 104 ms. Both are what `immutable` buys — a fresh sheet change over the same link is 1306 ms.
 
 ## Status
 

@@ -122,14 +122,14 @@ failure, and the sheet number it happens at, is the result.
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
 | Document open (1,500 pages) | 217 s | — never opened |
-| First sheet on screen | 225 s | **9.02 s** |
-| Sheet change, first ten (median) | 210 ms (174–224930) | 1316 ms (1307–8509) |
-| Sheet change, last ten (median) | 224 ms (181–251) | 1312 ms (1309–1319) |
-| **Returning to a visited sheet** | not measured | **81 ms** (77–83) |
-| Worst frame, first ten | 25 ms (23–35) † | 30 ms (28–32) |
-| Worst frame, last ten | 24 ms (22–27) † | 30 ms (28–31) |
+| First sheet on screen | 225 s | **8.45 s** |
+| Sheet change, first ten (median) | 210 ms (174–224930) | 1320 ms (1307–7960) |
+| Sheet change, last ten (median) | 224 ms (181–251) | 1306 ms (1298–1327) |
+| **Returning to a visited sheet** | not measured | **98 ms** (72–104) |
+| Worst frame, first ten | 25 ms (23–35) † | 29 ms (27–30) |
+| Worst frame, last ten | 24 ms (22–27) † | 28 ms (27–29) |
 | Memory at sheet 1 | 59.9 MB | 13.5 MB |
-| **Memory peak** | **2230 MB** (2180 MB canvas) | **259 MB** (250 MB tiles) |
+| **Memory peak** | **2230 MB** (2180 MB canvas) | **171 MB** (160 MB tiles) |
 | Memory passes 400 MB at | **sheet 9** | never |
 | Sheets painted of 50 | 50 / 50 | 50 / 50 |
 
@@ -152,12 +152,12 @@ device stops it.
 
 | | change |
 |---|---|
-| First sheet on screen | 225 s → 9.02 s, **25x faster** |
+| First sheet on screen | 225 s → 8.45 s, **27x faster** |
 | Main-thread block on load | 1120 ms → 66 ms, **17x less** |
 | Longest single task | 875 ms → 66 ms, **13x shorter** |
-| Peak memory over 50 sheets | 2230 MB → 259 MB, **9x less** |
-| Sheet change | 210 ms → 1312 ms, **6x slower** |
-| Returning to a visited sheet | — → 81 ms |
+| Peak memory over 50 sheets | 2230 MB → 171 MB, **13x less** |
+| Sheet change | 210 ms → 1306 ms, **6x slower** |
+| Returning to a visited sheet | — → 98 ms |
 
 **The slower sheet change is real and is the honest cost.** Naive is quick between
 sheets because it already paid for all of them; every page is in memory. Tiled
@@ -166,17 +166,32 @@ everything once. 225 seconds of nothing versus 1.3 seconds per sheet is a trade,
 not a free win, and a session of more than about 170 sheets would spend more time
 waiting under tiled than under naive.
 
-**Returning to a sheet costs 81 ms**, because nothing is fetched at all: the tile
-index is memoized, the coarse levels are pinned in the cache, and set content is
-served `immutable` so anything else is in the browser's cache. That row does not
-exist for naive because a revisit there is simply a cache hit in RAM.
+**Returning to a sheet costs 98 ms**, and that figure is a median across two
+populations rather than one number. The tile index is memoized either way, but a
+sheet whose coarse tiles are still held repaints from memory in about 72 ms, while
+one past the cache's pinned ceiling refetches them and decodes, at about 104 ms.
+The refetch is cheap because set content is served `immutable`, so it comes from
+the browser's cache rather than the network — the gap between 104 ms and a fresh
+sheet change at 1306 ms is the whole measure of how much that header is doing.
+The row does not exist for naive, where a revisit is simply a cache hit in RAM.
 
-**One thing the run does not prove.** Tiled memory is still growing at about 5 MB
-a sheet — 9x slower than naive, but linear. It is bounded: the cache budget is
-256 MB, so eviction starts near sheet 51 and the curve should flatten there. This
-session stopped at 50 and 250 MB, which is right at that edge, so **the plateau is
-argued rather than shown**. A longer run is what would settle it, and until then
-the memory claim is "much slower growth", not "flat".
+**The memory curve is flat, and that is measured rather than argued.** A
+140-sheet run of the same script climbs 5 MB a sheet to sheet 32, then holds at
+exactly 160 MB — the cache's pinned budget — for the remaining 107 sheets. Peak
+was 173 MB at sheet 140 against 171 MB at sheet 50, with every sheet painted. The
+claim is "flat", not "slower growth": memory is bounded by the budget rather than
+by how many sheets someone opens.
+
+It took a 140-sheet run to establish that, and the first one failed. An earlier
+build exempted the coarse levels from the budget outright, on the reasoning that
+the whole set's coarse tiles were worth a few megabytes — true of their encoded
+size, and wrong by 77x for the decoded bitmaps actually held. Measured, that grew
+to 711 MB over 140 sheets with eviction never running once, because at fit scale
+every tile the renderer needs is a coarse one. The exemption now has a ceiling of
+its own, evicted by least-recently-used sheet, and the plateau above is the
+result. A budget with an unbounded exemption is not a budget, and the only reason
+this was caught is that the session samples process memory from outside the cache
+— the cache's own byte total could not see what it had failed to account for.
 
 ### On measuring memory
 
@@ -341,7 +356,16 @@ yields zero and any single long task would fail the run, so those use an absolut
 physical fact rather than an observation.
 
 The 400 MB figure in the session table remains a marker on the memory curve
-rather than the pass mark; the memory gate is 324 MB, from the 259 MB measured.
+rather than the pass mark; the memory gate is 216 MB, from the 173 MB measured
+over 140 sheets. It was 324 MB, derived from a 259 MB reading taken while memory
+was still climbing without bound — a reminder that a gate is only as sound as the
+behaviour it was calibrated against, and that reading was honest about a system
+that was not.
+
+The revisit gate is 130 ms rather than 25% over the 98 ms median, because revisit
+is bimodal: ~72 ms inside the pinned ceiling, ~104 ms past it. The spec samples
+three sheets without knowing which side they fall on, so its median moves with the
+draw, and a gate has to clear the slower population.
 
 ## To be measured
 
