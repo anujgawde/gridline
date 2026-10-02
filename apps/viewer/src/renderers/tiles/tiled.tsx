@@ -35,6 +35,25 @@ const TILE_SIZE = 512;
    derived: the session measurement is what should set it. */
 const CACHE_BUDGET_BYTES = 256 * 1024 * 1024;
 
+/* Of that budget, the most the pinned coarse tiles may hold.
+
+   What is left, 96 MB, is for the sheet on screen: a whole sheet at level 3 is
+   48 MB, so there is room for the current sheet and the one before it at full
+   depth.
+
+   Expressed in bytes rather than in sheets on purpose. A sheet's coarse cost is
+   its geometry: cols are 2^level and rows are ceil(height/512), which makes every
+   standard landscape size — ARCH D, E, E1, ANSI D, A1, A3 — exactly five tiles,
+   while portrait is eight and a wide section is three. So 160 MB is about 32
+   landscape sheets or 20 portrait ones, and the ceiling adapts instead of being
+   wrong for sets this one did not anticipate. All sheets in a given set share a
+   size, so within a set the figure is constant.
+
+   Both figures are policy rather than measurement. What the measurement settles
+   is that the pinned set needs a ceiling at all — without one it grew to 700 MB
+   over 140 sheets and was still climbing. */
+const PINNED_BUDGET_BYTES = 160 * 1024 * 1024;
+
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 4;
 
@@ -84,7 +103,7 @@ export function TiledRenderer({
   const [failedSheet, setFailedSheet] = useState<string | null>(null);
   const [stats, setStats] = useState({ bytes: 0, count: 0, level: 0, scale: 0 });
 
-  cacheRef.current ??= new TileCache(CACHE_BUDGET_BYTES);
+  cacheRef.current ??= new TileCache(CACHE_BUDGET_BYTES, PINNED_BUDGET_BYTES);
   loaderRef.current ??= new TileLoader(
     source.baseUrl.replace(/\/$/, ""),
     cacheRef.current,
