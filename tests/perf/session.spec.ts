@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { panAndZoom, startFrameRecording, stopFrameRecording } from "./frames";
 import { BUDGETS, isGated } from "./budgets";
@@ -48,6 +49,11 @@ interface SheetReading {
   jsHeapMb: number;
   pixelMemoryMb: number;
   pagesHeld: number;
+  /* Cumulative since the renderer mounted, counted per tile needed rather than
+     per lookup. Recorded per sheet so the rate can be read over a span — the
+     revisit phase below is the span that matters. */
+  hits: number;
+  misses: number;
   mainThreadBlockedMs: number;
   frameP95Ms: number;
   frameWorstMs: number;
@@ -146,13 +152,7 @@ test(`${RENDERER} renderer — a session across the set`, async ({
     const longTasks = crashed
       ? { totalMs: 0, longestMs: 0, count: 0 }
       : await readLongTasks(page);
-    const attr = async (name: string) =>
-      Number(
-        (await page
-          .locator("[data-renderer]")
-          .getAttribute(name)
-          .catch(() => "0")) ?? "0",
-      );
+    const attr = async (name: string) => attrOf(page, name);
     /* fullpage holds rasterized pages, tiled holds decoded tiles. Different
        units, same question: how much is being kept. */
     const pagesHeld = crashed
@@ -162,6 +162,8 @@ test(`${RENDERER} renderer — a session across the set`, async ({
        no sampled metric counts them — and for this renderer they are the memory
        that matters. */
     const pixelMemoryMb = crashed ? 0 : await attr("data-pixels-mb");
+    const hits = crashed ? 0 : await attr("data-hits");
+    const misses = crashed ? 0 : await attr("data-misses");
 
     const reading: SheetReading = {
       ordinal: i + 1,
@@ -170,6 +172,8 @@ test(`${RENDERER} renderer — a session across the set`, async ({
       jsHeapMb: Math.round(jsHeapMb * 10) / 10,
       pixelMemoryMb,
       pagesHeld,
+      hits,
+      misses,
       mainThreadBlockedMs: longTasks.totalMs,
       frameP95Ms: frames.p95Ms,
       frameWorstMs: frames.worstMs,
@@ -200,6 +204,19 @@ test(`${RENDERER} renderer — a session across the set`, async ({
      just on. What that costs is a different question from what a first visit
      costs, and the difference is the entire argument for caching anything. */
   const revisits: { sheetId: string; ms: number }[] = [];
+  /* The reading the pinned-coarse-tile decision turns on: of the tiles a revisit
+     needed, how many were still in memory?
+
+     Taken as a delta across the revisit phase rather than from the cumulative
+     total, which is dominated by the one-way walk preceding it — every sheet in
+     that walk is seen for the first time, so it can only miss. A rate over the
+     whole run would describe the walk, not the revisits. */
+  const tileStats = async () => ({
+    hits: await attrOf(page, "data-hits"),
+    misses: await attrOf(page, "data-misses"),
+  });
+  const beforeRevisit = crashed ? { hits: 0, misses: 0 } : await tileStats();
+
   if (!crashed && readings.length >= 4) {
     const sample = [0, Math.floor(readings.length / 2), readings.length - 2]
       .map((i) => readings[i]?.sheetId)
@@ -224,6 +241,24 @@ test(`${RENDERER} renderer — a session across the set`, async ({
       `    revisits: ${revisits.map((r) => `${r.sheetId} ${r.ms}ms`).join("  ")}`,
     );
   }
+
+  const afterRevisit = crashed ? { hits: 0, misses: 0 } : await tileStats();
+  const revisitTiles = {
+    hits: afterRevisit.hits - beforeRevisit.hits,
+    misses: afterRevisit.misses - beforeRevisit.misses,
+  };
+  const revisitNeeded = revisitTiles.hits + revisitTiles.misses;
+  /* Null rather than 0 when nothing was needed. A rate with an empty
+     denominator is not a measurement. */
+  const revisitHitRate =
+    revisitNeeded === 0
+      ? null
+      : Math.round((revisitTiles.hits / revisitNeeded) * 100);
+  console.log(
+    `    revisit tiles: ${revisitTiles.hits} resident, ` +
+      `${revisitTiles.misses} fetched` +
+      (revisitHitRate === null ? "" : ` — ${revisitHitRate}% hit rate`),
+  );
 
   const painted = readings.filter((r) => r.msToPaint !== null);
   const firstTen = painted.slice(0, 10);
@@ -261,6 +296,9 @@ test(`${RENDERER} renderer — a session across the set`, async ({
         readings.find((r) => total(r) > MEMORY_MARKER_MB)?.ordinal ?? null,
     },
     revisit: summarize(revisits.map((r) => r.ms)),
+    /* Per tile needed during the revisit phase only. This is what says whether
+       the pinned coarse tiles are earning the memory they hold. */
+    revisitTiles: { ...revisitTiles, hitRatePercent: revisitHitRate },
     failedAt,
     readings,
     revisits,
@@ -320,6 +358,18 @@ test(`${RENDERER} renderer — a session across the set`, async ({
     "worst frame late in the session is over budget — see tests/perf/budgets.ts",
   ).toBeLessThanOrEqual(BUDGETS.session.worstFrameMs);
 });
+
+/* Reads a number off the renderer's host element. Returns 0 rather than throwing
+   when the attribute or the element is absent, because a crashed tab should
+   still produce a readable row. */
+async function attrOf(page: Page, name: string) {
+  return Number(
+    (await page
+      .locator("[data-renderer]")
+      .getAttribute(name)
+      .catch(() => "0")) ?? "0",
+  );
+}
 
 function total(reading?: SheetReading) {
   if (!reading) return 0;
