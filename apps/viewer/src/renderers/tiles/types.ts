@@ -34,7 +34,48 @@ export interface TileCacheStats {
   count: number;
   /* Sheets with at least one tile held. The unit pinned eviction works in. */
   sheets: number;
-  hits: number;
-  misses: number;
   evictions: number;
 }
+
+/* Hit rate belongs to the request stream, not to the store.
+
+   These used to live on the cache, incremented inside `get()`. That made them
+   uninterpretable: the draw loop calls `get()` through the loader once per
+   animation frame, so one tile arriving over 500 ms of network was recorded as
+   ~30 misses, and a tile sitting on screen during a pan accrued hits at the
+   refresh rate. The counters measured how long something was looked at, not how
+   often it was there — and the ratio was weighted by frame rate on both sides.
+
+   Counted here instead, once per tile per time it enters the set of tiles the
+   renderer needs. That is the question the pinned-vs-encoded decision turns on:
+   when a tile came into view, was it already in memory? */
+export interface TileLoaderStats {
+  /* Needed and already resident. */
+  hits: number;
+  /* Needed and not resident, so a fetch had to be started. */
+  misses: number;
+  /* Outstanding requests, queued or in flight. */
+  pending: number;
+}
+
+/* Everything the tiled renderer can say about itself: both counters plus where
+   the view currently is. The two stat types have disjoint keys so this composes
+   rather than restating them. */
+export type TileStats = TileCacheStats &
+  TileLoaderStats & {
+    /* The level being drawn, which is what decides how much is fetched. */
+    level: number;
+    scale: number;
+  };
+
+/* Read on demand rather than pushed on every frame.
+
+   A panel handed a value per frame would re-render at the refresh rate, which
+   makes displaying the numbers cost more than producing them — the instrument
+   changing what it measures, which is the mistake this phase already made once
+   with a counter built from the cache it was auditing. Pulling lets the panel
+   choose a cadence a person can read.
+
+   Null before a sheet's grid has loaded, because `level` is derived from it.
+   Callers show nothing rather than a zero that looks like a measurement. */
+export type TileStatsSource = () => TileStats | null;

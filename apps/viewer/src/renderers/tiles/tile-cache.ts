@@ -60,8 +60,6 @@ export class TileCache {
      someone left longest ago are the ones that go. Insertion order again,
      re-inserted on use — the same mechanism as the tile LRU, one level up. */
   #sheets = new Map<string, true>();
-  #hits = 0;
-  #misses = 0;
   #evictions = 0;
 
   constructor(
@@ -72,13 +70,13 @@ export class TileCache {
     private readonly pinnedBudgetBytes: number,
   ) {}
 
+  /* Reads and counts as a use. Hit rate is not counted here: this is called once
+     per frame per visible tile, so counting it would measure frame rate. The
+     loader counts instead, where a tile newly entering the needed set is
+     distinguishable from the same tile being redrawn. */
   get(id: string): ImageBitmap | undefined {
     const entry = this.#entries.get(id);
-    if (!entry) {
-      this.#misses += 1;
-      return undefined;
-    }
-    this.#hits += 1;
+    if (!entry) return undefined;
     this.#entries.delete(id);
     this.#entries.set(id, entry);
     /* A tile being used makes its sheet recently used. Without this the sheet
@@ -202,8 +200,6 @@ export class TileCache {
       pinnedBytes: this.#pinnedBytes,
       count: this.#entries.size,
       sheets: this.#sheets.size,
-      hits: this.#hits,
-      misses: this.#misses,
       evictions: this.#evictions,
     };
   }

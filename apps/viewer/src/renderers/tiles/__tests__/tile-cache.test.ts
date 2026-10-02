@@ -55,15 +55,6 @@ describe("TileCache", () => {
     expect(cache.has(deep(0))).toBe(true);
   });
 
-  it("counts hits and misses", () => {
-    const cache = new TileCache(10 * ONE_TILE, ROOMY_PIN);
-    cache.set(deep(0), fakeBitmap() as unknown as ImageBitmap);
-    cache.get(deep(0));
-    cache.get(deep(1));
-    expect(cache.stats().hits).toBe(1);
-    expect(cache.stats().misses).toBe(1);
-  });
-
   it("stays within its byte budget", () => {
     /* The property the whole cache exists for. Without it memory grows exactly
        the way the naive renderer's does, only in smaller pieces. */

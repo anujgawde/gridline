@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { TileCache } from "./tile-cache";
 import { tileId } from "./tile-cache";
-import type { TileIndex, TileKey } from "./types";
+import type { TileIndex, TileKey, TileLoaderStats } from "./types";
 
 /* Validated on read, like every document arriving over the network. */
 const TileIndexShape = z.object({
@@ -81,6 +81,12 @@ export class TileLoader {
      started, so a tile waiting behind MAX_IN_FLIGHT has no promise there to
      await. */
   #outstanding = new Map<string, { done: Promise<void>; settle: () => void }>();
+  /* The tiles the renderer needed on the previous request. Hit rate is counted
+     against entry into this set rather than per lookup, because the draw loop
+     asks for the same tiles on every frame — see TileLoaderStats. */
+  #needed = new Set<string>();
+  #hits = 0;
+  #misses = 0;
 
   constructor(
     private readonly baseUrl: string,
@@ -92,10 +98,21 @@ export class TileLoader {
      the next frame draws more, rather than waiting for the network. */
   request(sheetId: string, keys: TileKey[], onReady: () => void) {
     const ready: { key: TileKey; bitmap: ImageBitmap }[] = [];
+    const needed = new Set<string>();
 
     for (const key of keys) {
       const id = tileId(sheetId, key);
+      needed.add(id);
       const bitmap = this.cache.get(id);
+
+      /* Counted only when the tile was not needed on the previous request. The
+         same tile asked for on thirty consecutive frames is one need, however
+         many lookups it takes. */
+      if (!this.#needed.has(id)) {
+        if (bitmap) this.#hits += 1;
+        else this.#misses += 1;
+      }
+
       if (bitmap) {
         ready.push({ key, bitmap });
         continue;
@@ -116,6 +133,13 @@ export class TileLoader {
         onReady,
       });
     }
+
+    /* Replaced wholesale, which is what makes a tile leaving the viewport and
+       coming back count as a second need. Each call carries one complete "what
+       is needed now" set — the draw loop passes the visible tiles of a single
+       level, and sheet open passes a sheet's coarse tiles — so there is no
+       partial update to merge. */
+    this.#needed = needed;
 
     this.#pump();
 
@@ -205,7 +229,11 @@ export class TileLoader {
     entry.settle();
   }
 
-  get pending() {
-    return this.#inFlight.size + this.#queue.length;
+  stats(): TileLoaderStats {
+    return {
+      hits: this.#hits,
+      misses: this.#misses,
+      pending: this.#inFlight.size + this.#queue.length,
+    };
   }
 }
