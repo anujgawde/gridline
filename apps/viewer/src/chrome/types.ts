@@ -1,4 +1,4 @@
-import type { RendererName, ViewControls } from "../renderers";
+import type { RendererName, TileStatsSource, ViewControls } from "../renderers";
 import type { SheetIndexEntry } from "../sources";
 
 export interface SheetToolbarProps {
@@ -15,4 +15,10 @@ export interface SheetPropertiesProps {
      not in it. The panel says so rather than inventing values. */
   entry: SheetIndexEntry | undefined;
   renderer: RendererName;
+}
+
+export interface CachePanelProps {
+  /* Null until a renderer that has a tile cache has mounted. The naive renderer
+     never provides one, so the panel reports waiting rather than zeroes. */
+  source: TileStatsSource | null;
 }

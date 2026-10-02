@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useGestures, ZOOM_STEP } from "../../gestures";
 import type { GestureView } from "../../gestures";
@@ -10,7 +10,7 @@ import { DeepZoomRenderer, needsDeepZoom } from "./deep-zoom";
 import type { DeepZoomResult } from "./deep-zoom";
 import { tileId } from "./tile-cache";
 import { loadTileIndex, TileLoader } from "./tile-loader";
-import type { TileIndex } from "./types";
+import type { TileIndex, TileStats, TileStatsSource } from "./types";
 import { fitScale, levelFor, tileRect, visibleTiles } from "./viewport";
 import type { ViewState } from "./viewport";
 
@@ -64,6 +64,9 @@ interface Props {
   /* Handed upward so the viewer's toolbar can drive the view without the
      toolbar knowing which renderer is mounted. */
   onControls?: (controls: ViewControls) => void;
+  /* Handed upward the same way, as a getter rather than a value. Only this
+     renderer has a tile cache, so only this one offers it. */
+  onStatsSource?: (source: TileStatsSource) => void;
 }
 
 /* Centred and scaled so the whole sheet is visible. Shared by the initial open
@@ -83,6 +86,7 @@ export function TiledRenderer({
   source,
   onPainted,
   onControls,
+  onStatsSource,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -101,7 +105,22 @@ export function TiledRenderer({
      fast. */
   const [paintedSheet, setPaintedSheet] = useState<string | null>(null);
   const [failedSheet, setFailedSheet] = useState<string | null>(null);
-  const [stats, setStats] = useState({ bytes: 0, count: 0, level: 0, scale: 0 });
+  /* Written once per frame, which is also what publishes `data-scale` — the
+     attribute an input-latency MutationObserver watches to time a zoom settling.
+     So this stays on the frame path deliberately; the perf panel does not read
+     it and polls on its own cadence instead. */
+  const [stats, setStats] = useState<TileStats>({
+    bytes: 0,
+    pinnedBytes: 0,
+    count: 0,
+    sheets: 0,
+    evictions: 0,
+    hits: 0,
+    misses: 0,
+    pending: 0,
+    level: 0,
+    scale: 0,
+  });
 
   cacheRef.current ??= new TileCache(CACHE_BUDGET_BYTES, PINNED_BUDGET_BYTES);
   loaderRef.current ??= new TileLoader(
@@ -237,10 +256,9 @@ export function TiledRenderer({
       deepResultRef.current = null;
     }
 
-    const cacheStats = cache.stats();
     setStats({
-      bytes: cacheStats.bytes,
-      count: cacheStats.count,
+      ...cache.stats(),
+      ...loader.stats(),
       level: target.level,
       scale: view.scale,
     });
@@ -279,6 +297,28 @@ export function TiledRenderer({
   useEffect(() => {
     onControls?.(controls);
   }, [controls, onControls]);
+
+  /* Reads the refs, not the stats state, so a caller sees the moment it asks
+     rather than the last frame React happened to render. Stable, so handing it
+     upward does not re-run the consumer's effect on every draw. */
+  const readStats = useCallback<TileStatsSource>(() => {
+    const cache = cacheRef.current;
+    const loader = loaderRef.current;
+    const index = indexRef.current;
+    if (!cache || !loader || !index) return null;
+
+    const { scale } = viewRef.current;
+    return {
+      ...cache.stats(),
+      ...loader.stats(),
+      level: levelFor(index, scale).level,
+      scale,
+    };
+  }, []);
+
+  useEffect(() => {
+    onStatsSource?.(readStats);
+  }, [onStatsSource, readStats]);
 
   useEffect(() => {
     let cancelled = false;
@@ -397,7 +437,17 @@ export function TiledRenderer({
       }
       data-sheet={sheetId}
       data-pixels-mb={Math.round((stats.bytes / 1024 / 1024) * 10) / 10}
+      /* The pinned share, separately. The total alone cannot show whether the
+         ceiling that produced the plateau is actually binding. */
+      data-pinned-mb={Math.round((stats.pinnedBytes / 1024 / 1024) * 10) / 10}
       data-tiles-held={stats.count}
+      data-sheets-held={stats.sheets}
+      data-evictions={stats.evictions}
+      /* Counted per tile needed, not per lookup, so a perf run can record hit
+         rate rather than it only being read off a panel by hand. */
+      data-hits={stats.hits}
+      data-misses={stats.misses}
+      data-pending={stats.pending}
       data-level={stats.level}
       data-deep={deepResultRef.current ? "1" : "0"}
       data-scale={stats.scale.toFixed(3)}

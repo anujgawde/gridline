@@ -2,9 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import { bus } from "@gridline/platform/bus";
 
-import { SheetProperties, SheetToolbar } from "../chrome";
+import {
+  CachePanel,
+  cachePanelRequested,
+  SheetProperties,
+  SheetToolbar,
+} from "../chrome";
 import { FullPageRenderer, selectRenderer, TiledRenderer } from "../renderers";
-import type { ViewControls } from "../renderers";
+import type { TileStatsSource, ViewControls } from "../renderers";
 import { loadSheetIndex, loadSheetSource } from "../sources";
 import type { SheetIndexEntry, SheetSource } from "../sources";
 import type { SheetSurfaceProps } from "./types";
@@ -30,7 +35,13 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
   /* Null until a renderer is mounted and has framed a sheet. The toolbar's zoom
      controls stay disabled rather than absent until then. */
   const [controls, setControls] = useState<ViewControls | null>(null);
+  /* Only the tiled renderer has a tile cache to report on. */
+  const [statsSource, setStatsSource] = useState<TileStatsSource | null>(null);
   const renderer = selectRenderer();
+  /* Read once at mount rather than on every render: the query string does not
+     change without a navigation, and a panel that could appear mid-session
+     would be a layout shift over a drawing someone is reading. */
+  const [showCachePanel] = useState(cachePanelRequested);
 
   /* The address of the set and the sheet-to-page mapping are both fetched, not
      compiled in, so they resolve after this component is already on screen.
@@ -80,6 +91,13 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
     setControls(next);
   }, []);
 
+  const takeStatsSource = useCallback((next: TileStatsSource) => {
+    /* Wrapped in a thunk. A state setter handed a function treats it as an
+       updater, so passing the getter directly would call it and store its
+       reading instead of keeping the getter. */
+    setStatsSource(() => next);
+  }, []);
+
   if (!resolved) {
     return (
       <div className="viewer-surface">
@@ -107,6 +125,7 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
             source={ready.source}
             onPainted={announce}
             onControls={takeControls}
+            onStatsSource={takeStatsSource}
           />
         ) : (
           <FullPageRenderer
@@ -118,6 +137,7 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
           />
         )}
         <SheetToolbar controls={controls} />
+        {showCachePanel && <CachePanel source={statsSource} />}
       </div>
       <SheetProperties
         sheetId={current}
