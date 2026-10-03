@@ -3,11 +3,22 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 import { format, summarize } from "./stats";
-import { applyProfile, PROFILE, readHeapBytes } from "./throttle";
+import {
+  applyProfile,
+  collectLongTasks,
+  PROFILE,
+  readHeapBytes,
+  readLongTasks,
+} from "./throttle";
 
-/* The navigator's unoptimised grid: 1,500 DOM cards, no virtualisation. This
-   records the cost of scrolling the whole list, top to bottom, as the reading
-   a virtualised grid is compared against.
+/* The navigator's sheet grid, loaded and then scrolled top to bottom.
+
+   PERF_GRID=full measures the baseline, every one of the 1,500 cards in the DOM
+   (`?grid=full`). The default measures the virtual grid, which draws only the
+   rows near the viewport. Each writes its own results file.
+
+   First render is the navigator's own `gridline:grid-shown` span, from the
+   sheet index arriving to the grid painted, so network time is not in it.
 
    Frames come from a CDP trace, not requestAnimationFrame, and the event read
    is DrawFrame — a frame the compositor actually drew. BeginFrame looks like
@@ -26,6 +37,7 @@ import { applyProfile, PROFILE, readHeapBytes } from "./throttle";
 
 const RUNS = Number(process.env.PERF_RUNS ?? 3);
 const JANK = process.env.PERF_JANK === "1";
+const GRID = process.env.PERF_GRID === "full" ? "full" : "virtual";
 
 /* One-and-a-half refresh intervals at 60 Hz. A frame longer than this is one
    the display had to repeat. */
@@ -52,10 +64,12 @@ interface TraceEvent {
   dur?: number;
 }
 
-test("navigator grid — scroll performance", async ({ browser }) => {
+test(`navigator grid (${GRID}) — load and scroll`, async ({ browser }) => {
   test.setTimeout(300_000);
 
   const samples: {
+    gridShownMs: number | null;
+    loadLongestTaskMs: number;
     domNodes: number;
     jsHeapMb: number;
     frameCount: number;
@@ -71,9 +85,12 @@ test("navigator grid — scroll performance", async ({ browser }) => {
       viewport: { width: 1600, height: 1000 },
     });
     const page = await context.newPage();
+    await collectLongTasks(page);
     const client = await applyProfile(page);
 
-    await page.goto("/?view=sheets", { waitUntil: "commit" });
+    await page.goto(`/?view=sheets${GRID === "full" ? "&grid=full" : ""}`, {
+      waitUntil: "commit",
+    });
 
     /* The grid writes the count only once the sheets are rendered, so this
        confirms every card is in the DOM. */
@@ -83,6 +100,18 @@ test("navigator grid — scroll performance", async ({ browser }) => {
       { timeout: 60_000 },
     );
     await page.waitForTimeout(500);
+
+    /* A grid of the wrong kind would make every reading below describe the
+       other one. */
+    await expect(page.locator(`.sheet-grid-${GRID}`)).toHaveCount(1);
+
+    const gridShownMs = await page.evaluate(
+      () => performance.getEntriesByName("gridline:grid-shown", "measure")[0]?.duration ?? null,
+    );
+    /* Read before scrolling, so it covers loading only. The longest task is
+       usually the grid's own render, but it is whatever blocked the page most
+       while it loaded. */
+    const loadLongestTaskMs = (await readLongTasks(page)).longestMs;
 
     const domNodes = await page.evaluate(() => document.querySelectorAll("*").length);
     const jsHeapMb = (await readHeapBytes(client)) / 1024 / 1024;
@@ -159,6 +188,8 @@ test("navigator grid — scroll performance", async ({ browser }) => {
         .reduce((sum, e) => sum + (e.dur as number), 0) / 1000;
 
     const sample = {
+      gridShownMs: gridShownMs === null ? null : Math.round(gridShownMs),
+      loadLongestTaskMs,
       domNodes,
       jsHeapMb: Math.round(jsHeapMb * 10) / 10,
       frameCount: intervals.length,
@@ -172,6 +203,7 @@ test("navigator grid — scroll performance", async ({ browser }) => {
 
     console.log(
       `    run ${run + 1}/${RUNS}  ` +
+        `shown ${sample.gridShownMs} ms  ` +
         `DOM ${sample.domNodes}  ` +
         `heap ${Math.round(jsHeapMb)} MB  ` +
         `frames ${sample.frameCount}  ` +
@@ -190,8 +222,13 @@ test("navigator grid — scroll performance", async ({ browser }) => {
     takenAt: new Date().toISOString(),
     profile: PROFILE.label,
     runs: RUNS,
+    grid: GRID,
     jank: JANK,
     scrollSpeedPxPerS: SCROLL_SPEED_PX_S,
+    load: {
+      gridShown: pick("gridShownMs"),
+      longestTask: pick("loadLongestTaskMs"),
+    },
     dom: { nodes: pick("domNodes") },
     memory: { jsHeapMb: pick("jsHeapMb") },
     scroll: {
@@ -205,15 +242,18 @@ test("navigator grid — scroll performance", async ({ browser }) => {
     samples,
   };
 
-  /* A jank run is a check on the spec, not a reading of the grid, so it must
-     not overwrite the baseline. */
-  const file = JANK ? "navigator-scroll-jank.json" : "navigator-scroll.json";
+  /* One file per grid, so measuring one never replaces the other's reading. A
+     jank run is a check on the spec, not a reading of the grid, so it gets its
+     own file too. */
+  const file = `navigator-scroll-${GRID}${JANK ? "-jank" : ""}.json`;
   await mkdir("perf-results", { recursive: true });
   await writeFile(`perf-results/${file}`, `${JSON.stringify(result, null, 2)}\n`);
 
   console.log(
-    `\n  navigator grid scroll — ${PROFILE.label}, median of ${RUNS}${JANK ? ", JANK INJECTED" : ""}`,
+    `\n  navigator grid (${GRID}) — ${PROFILE.label}, median of ${RUNS}${JANK ? ", JANK INJECTED" : ""}`,
   );
+  console.log(`    grid shown              ${format(result.load.gridShown)}`);
+  console.log(`    load: longest task      ${format(result.load.longestTask)}`);
   console.log(`    DOM nodes               ${format(result.dom.nodes, "")}`);
   console.log(`    JS heap                 ${format(result.memory.jsHeapMb, "MB")}`);
   console.log(`    frames drawn            ${format(result.scroll.frames, "")}`);
@@ -225,4 +265,5 @@ test("navigator grid — scroll performance", async ({ browser }) => {
   console.log(`\n  written to perf-results/${file}\n`);
 
   expect(samples.every((s) => s.frameCount > 0)).toBe(true);
+  expect(samples.every((s) => s.gridShownMs !== null)).toBe(true);
 });
