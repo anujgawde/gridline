@@ -1,16 +1,21 @@
-# Navigator — scrolling the sheet grid, before and after
+# Navigator — the sheet grid and its thumbnails
 
-What it costs to scroll the whole 1,500-sheet set, and what it became.
+What it costs to scroll the whole 1,500-sheet set, what it became, and what
+thumbnails add to it.
 
-Every figure here comes from `tests/perf/navigator.spec.ts`, run on one machine.
+Every figure here comes from `tests/perf/navigator.spec.ts` or
+`tests/perf/thumbnails.spec.ts`, run on one machine.
 The spec is the source of truth: no number enters this file that did not come
 out of a run anyone can repeat.
 
 ## Profile
 
 **4x CPU throttle**, a 1600 × 1000 viewport, median of three runs with the range
-in brackets. The network throttle the other specs use is irrelevant here: the
-sheet list has finished loading before measurement starts.
+in brackets. The grid readings do not touch the network: the sheet list has
+finished loading before measurement starts, and thumbnails are switched off
+(`?thumbs=0`) so nothing downloads underneath them. Thumbnails are fetched over
+the same paced link as every other spec: 1.6 Mbit/s with a 562 ms round trip,
+shared by every request in flight to that server.
 
 ## How it is measured
 
@@ -103,6 +108,57 @@ this data supports.
 **Worst frame is noisy.** Separate sessions on the same machine have read 20–51
 ms, on both grids. A gate on it must be set from the worst reading, not the median.
 
+## Thumbnails
+
+Each card shows its sheet's level-0 tile: the whole sheet in one 512 px image,
+median 22 KB, already produced by the tiler for the viewer. A card requests its
+thumbnail when it comes on screen and withdraws the request if it leaves first.
+Requests are served newest first, four at a time, so after a fling the cards
+someone has stopped on are not queued behind ones already gone.
+
+The navigator keeps no thumbnail cache of its own. Tiles are served immutable,
+so the browser's HTTP cache already holds every one fetched; **scroll back**
+below is the reading that tests whether that is enough.
+
+**First screenful** runs from the grid painted to every on-screen card showing
+its thumbnail. **Slow scroll** is four screens at 400 px/s, a reading pace at
+which thumbnails arrive and decode mid-scroll — a fast scroll withdraws most
+requests before anything decodes, so it cannot answer whether decoding costs
+frames. The spec counts the thumbnails that arrived during it, and a run in
+which none did fails. Off is the same walk with `?thumbs=0`.
+
+Both columns were taken in one session, one run after the other, with four
+thumbnail requests in flight at a time.
+
+| metric | thumbnails off | thumbnails on |
+|---|---|---|
+| first screenful | — | 5871 ms (5848–5894) |
+| scroll back, screen filled | — | 161 ms (153–228) |
+| JS heap | 7 MB | 9 MB |
+| thumbnails arrived during slow scroll | 0 | 47 (43–47) |
+| slow scroll: frame median | 17 ms (17–17) | 17 ms (17–17) |
+| slow scroll: frame p95 | 17 ms (17–18) | 17 ms (17–17) |
+| slow scroll: frame worst | 41 ms (27–51) | 43 ms (39–44) |
+| slow scroll: frames > 25 ms | 1 (1–1) | 1 (1–1) |
+| slow scroll: main-thread rendering | 352 ms (330–361) | 459 ms (444–485) |
+
+### What thumbnails cost
+
+**Scrolling holds its frame rate while they decode.** Median, p95 and long
+frames are identical with and without them, and the worst frame sits inside the
+noise both arms show. Decoding is not free — main-thread time rises by about
+107 ms over a scroll in which 47 arrived, roughly 2 ms each, and the two ranges
+do not overlap — but none of it reaches a dropped frame.
+
+**A screenful takes 5.9 seconds, and most of it is waiting.** 28 thumbnails of
+about 22 KB is roughly 600 KB, which a 1.6 Mbit/s link carries in about 3
+seconds; with one 562 ms round trip ahead of it, about 3.6 seconds is the floor
+for images of this size. The rest is round trips that do not overlap: with four
+requests in flight, each waits a full round trip before its first byte.
+
+**The navigator needs no cache of its own.** Returning to cards already seen
+refills the screen in 161 ms, from the browser's HTTP cache.
+
 ## Reproduce
 
 ```sh
@@ -110,8 +166,11 @@ pnpm build && pnpm serve           # in one terminal
 pnpm exec playwright test navigator                    # after: the virtual grid
 PERF_GRID=full pnpm exec playwright test navigator     # before: every card
 PERF_JANK=1 PERF_RUNS=1 pnpm exec playwright test navigator   # the control
+pnpm exec playwright test thumbnails                   # thumbnails on
+PERF_THUMBS=0 pnpm exec playwright test thumbnails     # thumbnails off
 ```
 
 Each grid writes its own file, `perf-results/navigator-scroll-virtual.json` and
 `perf-results/navigator-scroll-full.json`; a control run adds `-jank` to the
-name.
+name. Thumbnails write `perf-results/navigator-thumbnails-on.json` and
+`-off.json`.

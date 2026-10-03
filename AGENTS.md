@@ -23,7 +23,8 @@ Pre-alpha. The workspace packages:
   (`?view=sheets` in the shell), and `panel`, beside the drawing. Runs standalone
   on port 4102 in the grid layout. The grid is virtualised: only the rows near
   the viewport are in the DOM. `?grid=full` draws every card instead, kept as
-  the measured baseline.
+  the measured baseline. Cards show each sheet's level-0 tile as a thumbnail,
+  loaded only while on screen; `?thumbs=0` turns them off.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -39,7 +40,7 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, the navigator's thumbnails and filters, the compare remote, and the primitives the navigator
+Still to build: a pipeline per app, the navigator's discipline filters, the compare remote, and the primitives the navigator
 needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 
