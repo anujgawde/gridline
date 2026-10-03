@@ -31,7 +31,7 @@ export function loadSheetSurface() {
 }
 
 export interface NavigatorSetNavigator {
-  SetNavigator: ComponentType;
+  SetNavigator: ComponentType<{ layout: "grid" | "panel" }>;
 }
 
 export function loadSetNavigator() {

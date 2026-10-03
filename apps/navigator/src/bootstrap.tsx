@@ -11,6 +11,6 @@ if (!container) throw new Error("#root is missing from index.html");
 
 createRoot(container).render(
   <StrictMode>
-    <SetNavigator />
+    <SetNavigator layout="grid" />
   </StrictMode>,
 );

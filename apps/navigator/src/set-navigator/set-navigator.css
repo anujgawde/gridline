@@ -19,3 +19,122 @@
   font-variant-numeric: var(--numeric-tabular);
   color: var(--text-secondary);
 }
+
+.sheet-grid-status {
+  padding: var(--space-4);
+  color: var(--text-tertiary);
+}
+
+.sheet-grid-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+}
+
+.sheet-grid-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex: 0 0 auto;
+  padding: var(--space-4);
+  background: var(--surface-panel);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.sheet-grid-title {
+  margin: 0;
+  font: var(--type-view);
+}
+
+.sheet-grid-count {
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-secondary);
+}
+
+/* One grid for the whole set: the section wrappers dissolve into it, so the
+   headings span every column and stick to the top while their cards scroll. */
+.sheet-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  /* 192px minimum card, the mockup's desktop card width. */
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-12) * 2), 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-6);
+}
+
+.sheet-grid-section {
+  display: contents;
+}
+
+.sheet-grid-section-heading {
+  grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--space-7);
+  margin: 0 calc(var(--space-4) * -1);
+  padding: 0 var(--space-4);
+  background: var(--surface-panel-header);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.sheet-grid-section-name {
+  font: var(--type-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sheet-grid-section-count {
+  font: var(--type-data-sm);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-secondary);
+}
+
+.sheet-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-panel);
+  border: var(--border-w) solid var(--border-hairline);
+  border-radius: var(--radius-2);
+}
+
+/* ARCH E1 is 42 x 30 in, landscape, so the box matches the sheet's shape. */
+.sheet-card-thumb {
+  aspect-ratio: 7 / 5;
+  background: var(--surface-sunken);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.sheet-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  padding: var(--space-2);
+}
+
+.sheet-card-number {
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.02em;
+}
+
+.sheet-card-title {
+  overflow: hidden;
+  font: var(--type-caption);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}

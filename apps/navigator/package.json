@@ -7,12 +7,14 @@
     "build": "NODE_ENV=production rspack build",
     "dev": "NODE_ENV=development rspack serve",
     "serve": "node ../../tools/serve.mjs --dir dist --port 4102 --cors --throttle",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@gridline/platform": "workspace:*",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@module-federation/enhanced": "^2.9.2",

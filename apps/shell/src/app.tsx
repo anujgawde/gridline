@@ -53,9 +53,18 @@ function requestedSheet() {
   return value && /^[A-Z]{1,2}-\d{3}$/.test(value) ? value : "A-101";
 }
 
+/* `?view=sheets` shows the whole set full-screen instead of a drawing. A URL
+   rather than a control so a measurement can open it directly. */
+function requestedView() {
+  return new URLSearchParams(window.location.search).get("view") === "sheets"
+    ? "sheets"
+    : "drawing";
+}
+
 export function App() {
   const [sheet, setSheet] = useState<ActiveSheet | null>(null);
   const [sheetId] = useState(requestedSheet);
+  const [view] = useState(requestedView);
 
   useEffect(
     () =>
@@ -93,8 +102,8 @@ export function App() {
         )}
       </div>
 
-      <div className="shell-body">
-        <aside className="shell-panel">
+      {view === "sheets" ? (
+        <main className="shell-sheets">
           <RemoteBoundary
             name="navigator"
             fallback={<p className="shell-panel-message">Sheets unavailable</p>}
@@ -102,26 +111,41 @@ export function App() {
             <Suspense
               fallback={<p className="shell-panel-message">Loading sheets…</p>}
             >
-              <SetNavigator />
-            </Suspense>
-          </RemoteBoundary>
-        </aside>
-
-        <main className="shell-canvas">
-          <RemoteBoundary
-            name="viewer"
-            fallback={
-              <p className="shell-canvas-message">Viewer unavailable</p>
-            }
-          >
-            <Suspense
-              fallback={<p className="shell-canvas-message">Loading viewer…</p>}
-            >
-              <SheetSurface sheetId={sheetId} revision={4} />
+              <SetNavigator layout="grid" />
             </Suspense>
           </RemoteBoundary>
         </main>
-      </div>
+      ) : (
+        <div className="shell-body">
+          <aside className="shell-panel">
+            <RemoteBoundary
+              name="navigator"
+              fallback={<p className="shell-panel-message">Sheets unavailable</p>}
+            >
+              <Suspense
+                fallback={<p className="shell-panel-message">Loading sheets…</p>}
+              >
+                <SetNavigator layout="panel" />
+              </Suspense>
+            </RemoteBoundary>
+          </aside>
+
+          <main className="shell-canvas">
+            <RemoteBoundary
+              name="viewer"
+              fallback={
+                <p className="shell-canvas-message">Viewer unavailable</p>
+              }
+            >
+              <Suspense
+                fallback={<p className="shell-canvas-message">Loading viewer…</p>}
+              >
+                <SheetSurface sheetId={sheetId} revision={4} />
+              </Suspense>
+            </RemoteBoundary>
+          </main>
+        </div>
+      )}
     </div>
   );
 }
