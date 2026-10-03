@@ -22,6 +22,11 @@ data/
 test-results/
 playwright-report/
 
+# Where the perf specs write their readings. Separate from test-results/, which
+# Playwright empties at the start of every run — a second spec would otherwise
+# delete the first one's numbers before anyone had transcribed them.
+perf-results/
+
 coverage/
 *.log
 extras

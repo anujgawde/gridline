@@ -221,9 +221,9 @@ test(`${RENDERER} renderer — interaction, ${RUNS} runs`, async ({ browser }) =
     samples,
   };
 
-  await mkdir("test-results", { recursive: true });
+  await mkdir("perf-results", { recursive: true });
   await writeFile(
-    `test-results/viewer-interaction-${RENDERER}.json`,
+    `perf-results/viewer-interaction-${RENDERER}.json`,
     `${JSON.stringify(reading, null, 2)}\n`,
   );
 
@@ -239,7 +239,7 @@ test(`${RENDERER} renderer — interaction, ${RUNS} runs`, async ({ browser }) =
     }
   }
   console.log(
-    `\n  written to test-results/viewer-interaction-${RENDERER}.json\n`,
+    `\n  written to perf-results/viewer-interaction-${RENDERER}.json\n`,
   );
 
   /* The only assertions: the gestures actually ran and were actually observed.

@@ -28,6 +28,25 @@ import {
    recorded rather than avoided. */
 
 const SHEETS = Number(process.env.PERF_SHEETS ?? 50);
+
+/* How the session moves through the set. Two shapes, and they answer different
+   questions — a feature built for one can be measured as a regression by the
+   other, so neither is "the" session.
+
+     stride      every Nth sheet, jumping disciplines. The stress case: it
+                 deliberately defeats locality, so nothing can score well by
+                 accident. This is what every number recorded so far used.
+     sequential  neighbouring sheets in set order, which is how a drawing set is
+                 actually read — around a detail, across adjacent sheets. This is
+                 the case prefetch exists for and the only one that can judge it.
+
+   Default stays `stride` so existing readings remain comparable. */
+const WALKS = ["stride", "sequential"] as const;
+type Walk = (typeof WALKS)[number];
+const WALK = (process.env.PERF_WALK ?? "stride") as Walk;
+if (!WALKS.includes(WALK)) {
+  throw new Error(`PERF_WALK must be one of ${WALKS.join(", ")} — got ${WALK}`);
+}
 /* Both renderers run the identical script against the identical document.
    Anything else and the comparison is between two experiments. */
 const RENDERER = process.env.PERF_RENDERER ?? "tiled";
@@ -60,7 +79,7 @@ interface SheetReading {
   failed?: string;
 }
 
-test(`${RENDERER} renderer — a session across the set`, async ({
+test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
   browser,
   request,
 }) => {
@@ -75,12 +94,20 @@ test(`${RENDERER} renderer — a session across the set`, async ({
   ).toBe(true);
   const all = (await indexResponse.json()).sheets as { sheetId: string }[];
 
-  /* Spread across the whole set rather than the first N. Consecutive sheets in
-     one discipline would understate the work: a real session jumps between
-     architectural, structural and mechanical, which is also what defeats any
-     accidental locality in the document. */
+  /* `stride` spreads across the whole set rather than taking the first N:
+     consecutive sheets in one discipline would understate the work, since a
+     session that jumps between architectural, structural and mechanical defeats
+     any accidental locality in the document.
+
+     `sequential` is that locality on purpose — neighbouring sheets, in order,
+     from the start of the set. Not a weaker version of the above; a different
+     question. Reading a set is a local activity, and a cache or a prefetch built
+     for that cannot be judged by a walk designed to defeat it. */
   const stride = Math.max(1, Math.floor(all.length / SHEETS));
-  const visits = Array.from({ length: SHEETS }, (_, i) => all[i * stride].sheetId);
+  const visits =
+    WALK === "sequential"
+      ? all.slice(0, SHEETS).map((sheet) => sheet.sheetId)
+      : Array.from({ length: SHEETS }, (_, i) => all[i * stride].sheetId);
 
   const context = await browser.newContext({
     viewport: { width: 1600, height: 1000 },
@@ -268,6 +295,7 @@ test(`${RENDERER} renderer — a session across the set`, async ({
     takenAt: new Date().toISOString(),
     profile: PROFILE.label,
     renderer: RENDERER,
+    walk: WALK,
     document: "combined.pdf, 1500 pages, 41.7 MB",
     sheetsRequested: SHEETS,
     sheetsPainted: painted.length,
@@ -304,13 +332,15 @@ test(`${RENDERER} renderer — a session across the set`, async ({
     revisits,
   };
 
-  await mkdir("test-results", { recursive: true });
+  await mkdir("perf-results", { recursive: true });
   await writeFile(
-    `test-results/viewer-session-${RENDERER}.json`,
+    `perf-results/viewer-session-${RENDERER}-${WALK}.json`,
     `${JSON.stringify(result, null, 2)}\n`,
   );
 
-  console.log(`\n  session — ${PROFILE.label}, ${SHEETS} sheets, ${RENDERER}`);
+  console.log(
+    `\n  session — ${PROFILE.label}, ${SHEETS} sheets, ${RENDERER}, ${WALK} walk`,
+  );
   console.log(`    document opened in          ${result.coldStart.documentOpenMs} ms`);
   console.log(`    first sheet on screen       ${result.coldStart.firstSheetMs} ms`);
   console.log(`    sheet change, first ten     ${format(result.sheetChange.firstTen)}`);
@@ -328,7 +358,9 @@ test(`${RENDERER} renderer — a session across the set`, async ({
   if (failedAt) {
     console.log(`    first failure at sheet      ${failedAt.ordinal} (${failedAt.sheetId}) — ${failedAt.failed ?? `past ${MEMORY_MARKER_MB} MB`}`);
   }
-  console.log(`\n  written to test-results/viewer-session-${RENDERER}.json\n`);
+  console.log(
+    `\n  written to perf-results/viewer-session-${RENDERER}-${WALK}.json\n`,
+  );
 
   /* A session that painted nothing measured nothing. */
   expect(painted.length).toBeGreaterThan(0);
@@ -336,6 +368,20 @@ test(`${RENDERER} renderer — a session across the set`, async ({
   /* The naive renderer failing any of the below is the result, not a broken
      test, so it is measured and never graded. */
   if (!isGated(RENDERER)) return;
+
+  /* Every figure in budgets.ts was taken from a stride walk. Asserting them
+     against a sequential one would grade a measurement from one experiment with
+     a budget from another — the sequential walk visits neighbours, so its sheet
+     change and memory curve are a different population, not a better score on
+     the same one. It is measured and recorded here; gates for it get derived
+     from its own readings in 2.7. */
+  if (WALK !== "stride") {
+    expect(
+      painted.length,
+      "the session did not paint every sheet",
+    ).toBe(SHEETS);
+    return;
+  }
 
   expect(
     painted.length,

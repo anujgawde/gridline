@@ -151,9 +151,9 @@ test(`${RENDERER} renderer — cold start, ${RUNS} runs`, async ({ browser }) =>
     samples,
   };
 
-  await mkdir("test-results", { recursive: true });
+  await mkdir("perf-results", { recursive: true });
   await writeFile(
-    `test-results/viewer-baseline-${RENDERER}.json`,
+    `perf-results/viewer-baseline-${RENDERER}.json`,
     `${JSON.stringify(reading, null, 2)}\n`,
   );
 
@@ -162,7 +162,7 @@ test(`${RENDERER} renderer — cold start, ${RUNS} runs`, async ({ browser }) =>
     const unit = key === "heapUsedMb" ? "MB" : "ms";
     console.log(`    ${key.padEnd(28)} ${format(stat, unit)}`);
   }
-  console.log(`\n  written to test-results/viewer-baseline-${RENDERER}.json\n`);
+  console.log(`\n  written to perf-results/viewer-baseline-${RENDERER}.json\n`);
 
   /* The only assertions: something was actually measured, on every run. A run
      where the sheet never painted would otherwise write a file of nulls. */
