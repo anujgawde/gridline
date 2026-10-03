@@ -41,6 +41,12 @@ const SHEETS = Number(process.env.PERF_SHEETS ?? 50);
                  the case prefetch exists for and the only one that can judge it.
 
    Default stays `stride` so existing readings remain comparable. */
+/* Prefetch on unless PERF_PREFETCH=0, which drives `?prefetch=0` in the viewer.
+
+   So the before/after for 2.5 is two runs of one command rather than a checkout
+   of the commit before it — the same reason both renderers ship permanently. */
+const PREFETCH = process.env.PERF_PREFETCH !== "0";
+
 const WALKS = ["stride", "sequential"] as const;
 type Walk = (typeof WALKS)[number];
 const WALK = (process.env.PERF_WALK ?? "stride") as Walk;
@@ -128,7 +134,9 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
   let failedAt: SheetReading | null = null;
 
   const coldStart = Date.now();
-  await page.goto(`/?renderer=${RENDERER}`, { waitUntil: "commit" });
+  await page.goto(`/?renderer=${RENDERER}${PREFETCH ? "" : "&prefetch=0"}`, {
+    waitUntil: "commit",
+  });
 
   for (const [i, sheetId] of visits.entries()) {
     if (crashed) break;
@@ -296,6 +304,7 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
     profile: PROFILE.label,
     renderer: RENDERER,
     walk: WALK,
+    prefetch: PREFETCH,
     document: "combined.pdf, 1500 pages, 41.7 MB",
     sheetsRequested: SHEETS,
     sheetsPainted: painted.length,
@@ -334,7 +343,7 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
 
   await mkdir("perf-results", { recursive: true });
   await writeFile(
-    `perf-results/viewer-session-${RENDERER}-${WALK}.json`,
+    `perf-results/viewer-session-${RENDERER}-${WALK}${PREFETCH ? "" : "-noprefetch"}.json`,
     `${JSON.stringify(result, null, 2)}\n`,
   );
 
@@ -359,7 +368,7 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
     console.log(`    first failure at sheet      ${failedAt.ordinal} (${failedAt.sheetId}) — ${failedAt.failed ?? `past ${MEMORY_MARKER_MB} MB`}`);
   }
   console.log(
-    `\n  written to perf-results/viewer-session-${RENDERER}-${WALK}.json\n`,
+    `\n  written to perf-results/viewer-session-${RENDERER}-${WALK}${PREFETCH ? "" : "-noprefetch"}.json\n`,
   );
 
   /* A session that painted nothing measured nothing. */

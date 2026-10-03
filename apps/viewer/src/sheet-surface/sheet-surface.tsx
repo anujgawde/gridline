@@ -8,7 +8,12 @@ import {
   SheetProperties,
   SheetToolbar,
 } from "../chrome";
-import { FullPageRenderer, selectRenderer, TiledRenderer } from "../renderers";
+import {
+  FullPageRenderer,
+  prefetchEnabled,
+  selectRenderer,
+  TiledRenderer,
+} from "../renderers";
 import type { TileStatsSource, ViewControls } from "../renderers";
 import { loadSheetIndex, loadSheetSource } from "../sources";
 import type { SheetIndexEntry, SheetSource } from "../sources";
@@ -46,6 +51,7 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
      change without a navigation, and a panel that could appear mid-session
      would be a layout shift over a drawing someone is reading. */
   const [showCachePanel] = useState(cachePanelRequested);
+  const [prefetch] = useState(prefetchEnabled);
 
   /* The address of the set and the sheet-to-page mapping are both fetched, not
      compiled in, so they resolve after this component is already on screen.
@@ -102,13 +108,16 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
      Memoised so its identity is stable: it drives a prefetch effect, and a fresh
      array every render would re-queue the neighbours on every render. */
   const neighbours = useMemo(() => {
-    if (!ready) return EMPTY_NEIGHBOURS;
+    /* Withholding the neighbours is how prefetch is switched off: they exist
+       only to be fetched ahead, so there is no separate flag to thread through
+       the renderer. */
+    if (!ready || !prefetch) return EMPTY_NEIGHBOURS;
     const at = ready.index.findIndex((sheet) => sheet.sheetId === current);
     if (at === -1) return EMPTY_NEIGHBOURS;
     return [ready.index[at - 1], ready.index[at + 1]]
       .filter((sheet): sheet is SheetIndexEntry => Boolean(sheet))
       .map((sheet) => sheet.sheetId);
-  }, [ready, current]);
+  }, [ready, current, prefetch]);
 
   const takeStatsSource = useCallback((next: TileStatsSource) => {
     /* Wrapped in a thunk. A state setter handed a function treats it as an

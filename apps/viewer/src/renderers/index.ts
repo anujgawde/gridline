@@ -6,6 +6,6 @@ export type {
   Viewport,
 } from "./types";
 export { FullPageRenderer } from "./fullpage";
-export { selectRenderer } from "./select";
+export { prefetchEnabled, selectRenderer } from "./select";
 export { TiledRenderer } from "./tiles";
 export type { TileStats, TileStatsSource } from "./tiles";

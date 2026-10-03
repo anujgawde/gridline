@@ -15,3 +15,14 @@ export function selectRenderer(search = window.location.search): RendererName {
     ? (requested as RendererName)
     : "tiled";
 }
+
+/* Whether neighbouring sheets are fetched ahead, read from `?prefetch=`.
+
+   On unless explicitly disabled with `?prefetch=0`. It exists for the same
+   reason `?renderer=` does: the before/after is then a URL anyone can open
+   rather than a commit anyone has to check out. Prefetch is worth 1310 ms
+   against ~25 ms on a sequential walk, and a claim that large should stay
+   re-derivable after the commit that introduced it has scrolled out of view. */
+export function prefetchEnabled(search = window.location.search): boolean {
+  return new URLSearchParams(search).get("prefetch") !== "0";
+}
