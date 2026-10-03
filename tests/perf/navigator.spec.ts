@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
+import { LONG_FRAME_MS, traceScroll } from "./scroll-trace";
 import { format, summarize } from "./stats";
 import {
   applyProfile,
@@ -20,15 +21,13 @@ import {
    First render is the navigator's own `gridline:grid-shown` span, from the
    sheet index arriving to the grid painted, so network time is not in it.
 
-   Frames come from a CDP trace, not requestAnimationFrame, and the event read
-   is DrawFrame — a frame the compositor actually drew. BeginFrame looks like
-   the obvious choice and is useless: it is the vsync tick, emitted whether or
-   not a frame followed, so it reads 16.7 ms through an 80 ms main-thread stall.
+   Thumbnails are switched off (`?thumbs=0`): this spec measures the grid, and
+   images downloading and decoding underneath it would make the virtual grid's
+   reading describe something the full grid never does. Their cost is measured
+   on its own in thumbnails.spec.ts.
 
-   Scrolling is compositor-driven, so a busy main thread rarely drops a frame
-   here; it shows up instead as main-thread rendering time. Both are recorded,
-   because they answer different questions — what the user sees, and what the
-   page costs to keep it that way.
+   Frames and main-thread time come from a CDP trace; scroll-trace.ts says why
+   that trace, and why DrawFrame.
 
    PERF_JANK=1 stalls the main thread 80 ms on every scroll event. It exists to
    confirm the spec can see a regression: both readings must move under it.
@@ -39,30 +38,8 @@ const RUNS = Number(process.env.PERF_RUNS ?? 3);
 const JANK = process.env.PERF_JANK === "1";
 const GRID = process.env.PERF_GRID === "full" ? "full" : "virtual";
 
-/* One-and-a-half refresh intervals at 60 Hz. A frame longer than this is one
-   the display had to repeat. */
-const LONG_FRAME_MS = 25;
-
 /* Steady and quick, so the whole list passes in about 15 seconds. */
 const SCROLL_SPEED_PX_S = 3000;
-
-/* Main-thread rendering work, by trace event name. These are siblings in the
-   frame lifecycle rather than nested, so their durations sum without
-   double-counting. EventDispatch carries scroll handlers. */
-const MAIN_THREAD_EVENTS = new Set([
-  "EventDispatch",
-  "UpdateLayoutTree",
-  "Layout",
-  "PrePaint",
-  "Paint",
-  "Layerize",
-]);
-
-interface TraceEvent {
-  name?: string;
-  ts?: number;
-  dur?: number;
-}
 
 test(`navigator grid (${GRID}) — load and scroll`, async ({ browser }) => {
   test.setTimeout(300_000);
@@ -88,7 +65,7 @@ test(`navigator grid (${GRID}) — load and scroll`, async ({ browser }) => {
     await collectLongTasks(page);
     const client = await applyProfile(page);
 
-    await page.goto(`/?view=sheets${GRID === "full" ? "&grid=full" : ""}`, {
+    await page.goto(`/?view=sheets&thumbs=0${GRID === "full" ? "&grid=full" : ""}`, {
       waitUntil: "commit",
     });
 
@@ -132,72 +109,23 @@ test(`navigator grid (${GRID}) — load and scroll`, async ({ browser }) => {
     if (!box) throw new Error(".sheet-grid not visible");
     const distance = await grid.evaluate((el) => el.scrollHeight - el.clientHeight);
 
-    /* Both listeners attach before tracing starts. Attached after Tracing.end,
-       a short trace can complete first and the wait never resolves. */
-    const chunks: TraceEvent[][] = [];
-    client.on("Tracing.dataCollected", (params) => {
-      chunks.push((params as { value: TraceEvent[] }).value);
-    });
-    const complete = new Promise<void>((resolve) => {
-      client.once("Tracing.tracingComplete", () => resolve());
-    });
-
-    await client.send("Tracing.start", {
-      categories: "disabled-by-default-devtools.timeline.frame,devtools.timeline",
-    });
-
-    /* Chrome's own gesture synthesiser, generating wheel input inside the
-       browser at display rate. Wheel events sent one at a time from the test
-       are paced by the protocol round trip instead, and the idle gaps between
-       them read as slow frames even with no throttling at all. */
-    await client.send("Input.synthesizeScrollGesture", {
-      x: Math.round(box.x + box.width / 2),
-      y: Math.round(box.y + box.height / 2),
-      yDistance: -distance,
-      speed: SCROLL_SPEED_PX_S,
-      gestureSourceType: "mouse",
-    });
-
-    await client.send("Tracing.end");
-    await complete;
+    const scroll = await traceScroll(
+      client,
+      { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+      distance,
+      SCROLL_SPEED_PX_S,
+    );
 
     /* A scroll that stopped short measured part of the list. */
     const scrollTop = await grid.evaluate((el) => el.scrollTop);
     expect(scrollTop).toBeGreaterThanOrEqual(distance - 1);
-
-    const events = chunks.flat();
-
-    const drawn = events
-      .filter((e) => e.name === "DrawFrame" && typeof e.ts === "number")
-      .map((e) => e.ts as number)
-      .sort((a, b) => a - b);
-
-    /* Trace timestamps are in microseconds. No interval is discarded: the
-       gesture keeps the compositor busy throughout, so a long one is a frame
-       the user saw repeated, not idle time. */
-    const intervals: number[] = [];
-    for (let i = 1; i < drawn.length; i += 1) {
-      intervals.push((drawn[i]! - drawn[i - 1]!) / 1000);
-    }
-    const sorted = [...intervals].sort((a, b) => a - b);
-    const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0;
-
-    const mainThreadMs =
-      events
-        .filter((e) => e.name && MAIN_THREAD_EVENTS.has(e.name) && typeof e.dur === "number")
-        .reduce((sum, e) => sum + (e.dur as number), 0) / 1000;
 
     const sample = {
       gridShownMs: gridShownMs === null ? null : Math.round(gridShownMs),
       loadLongestTaskMs,
       domNodes,
       jsHeapMb: Math.round(jsHeapMb * 10) / 10,
-      frameCount: intervals.length,
-      frameMedianMs: Math.round(at(0.5) * 10) / 10,
-      frameP95Ms: Math.round(at(0.95) * 10) / 10,
-      frameWorstMs: Math.round((sorted[sorted.length - 1] ?? 0) * 10) / 10,
-      longFrames: intervals.filter((ms) => ms > LONG_FRAME_MS).length,
-      mainThreadMs: Math.round(mainThreadMs),
+      ...scroll,
     };
     samples.push(sample);
 
