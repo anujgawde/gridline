@@ -37,12 +37,43 @@ function loader(cache: TileCache) {
 
 const noop = () => {};
 
-beforeEach(() => {
-  /* Never resolves, so no tile lands part-way through a case and nothing is
-     counted by the arrival path. The counting under test is synchronous. */
+let sent: string[] = [];
+
+function fetchCalls() {
+  return sent;
+}
+
+/* Swaps the stub for one that completes, so a case can watch what the loader
+   does *after* live work drains. Decoding is stubbed too, since Node has no
+   `createImageBitmap`. */
+function resolveFetches() {
   vi.stubGlobal(
     "fetch",
-    vi.fn(() => new Promise(() => {})),
+    vi.fn((url: string) => {
+      sent.push(String(url));
+      return Promise.resolve({ ok: true, blob: () => Promise.resolve({}) });
+    }),
+  );
+}
+
+/* Lets the loader's promise chain run to completion. Each tile passes through
+   fetch, blob and decode, so one tick is not enough. */
+async function settleMicrotasks() {
+  for (let i = 0; i < 10; i += 1) await Promise.resolve();
+}
+
+beforeEach(() => {
+  sent = [];
+  vi.stubGlobal("createImageBitmap", vi.fn(() => Promise.resolve(fakeBitmap())));
+  /* Never resolves by default, so no tile lands part-way through a case and
+     nothing is counted by the arrival path. The counting under test is
+     synchronous. */
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) => {
+      sent.push(String(url));
+      return new Promise(() => {});
+    }),
   );
 });
 
@@ -110,6 +141,29 @@ describe("TileLoader hit accounting", () => {
     expect(load.stats().misses).toBe(1);
   });
 
+  it("does not count a prefetch as a hit or a miss", () => {
+    /* A prefetch is a guess, not a need. Counting it would answer "how often did
+       we guess right?" under a name that says "how often was it there when
+       required?" — the same class of mistake as counting per frame. */
+    const load = loader(new TileCache(ROOMY, ROOMY));
+
+    load.prefetch("A-102", [key(0, 1), key(1, 1)]);
+
+    expect(load.stats().hits).toBe(0);
+    expect(load.stats().misses).toBe(0);
+    expect(load.stats().prefetchPending).toBe(2);
+  });
+
+  it("does not queue a prefetch for a tile already held", () => {
+    const cache = new TileCache(ROOMY, ROOMY);
+    resident(cache, key(0, 1), "A-102");
+    const load = loader(cache);
+
+    load.prefetch("A-102", [key(0, 1), key(1, 1)]);
+
+    expect(load.stats().prefetchPending).toBe(1);
+  });
+
   it("reports what it still owes, queued and in flight together", () => {
     const load = loader(new TileCache(ROOMY, ROOMY));
 
@@ -119,5 +173,65 @@ describe("TileLoader hit accounting", () => {
     load.request(SHEET, keys, noop);
 
     expect(load.stats().pending).toBe(10);
+  });
+});
+
+/* The invariant the whole design rests on: a tile someone is waiting for must
+   never queue behind one nobody asked for. Getting this wrong is not a slow
+   prefetch, it is a slow sheet change — the failure that cost nearly four
+   seconds before `abortExcept` existed. */
+describe("TileLoader prefetch priority", () => {
+  it("sends nothing speculative while a live request is outstanding", () => {
+    const load = loader(new TileCache(ROOMY, ROOMY));
+
+    load.request(SHEET, [key(0)], noop);
+    load.prefetch("A-102", [key(0, 1), key(1, 1)]);
+
+    const sent = fetchCalls();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain(`/tiles/${SHEET}/`);
+    expect(load.stats().prefetchPending).toBe(2);
+  });
+
+  /* Belt and braces: after `#pump` drains, a non-empty live queue implies the
+     in-flight cap is full, so the cap enforces this one even with the priority
+     gate removed. Kept because the invariant is the point, not the mechanism. */
+  it("sends nothing speculative while live work is merely queued", () => {
+    const load = loader(new TileCache(ROOMY, ROOMY));
+
+    // Ten live tiles against a cap of four: six are queued, none have started.
+    load.request(SHEET, Array.from({ length: 10 }, (_, i) => key(i)), noop);
+    load.prefetch("A-102", [key(0, 1)], );
+
+    expect(fetchCalls().every((url) => url.includes(`/tiles/${SHEET}/`))).toBe(
+      true,
+    );
+    expect(load.stats().prefetchPending).toBe(1);
+  });
+
+  it("starts the prefetch once live work has drained", async () => {
+    const load = loader(new TileCache(ROOMY, ROOMY));
+
+    resolveFetches();
+    load.request(SHEET, [key(0)], noop);
+    await settleMicrotasks();
+    load.prefetch("A-102", [key(0, 1)], );
+    await settleMicrotasks();
+
+    expect(fetchCalls().some((url) => url.includes("/tiles/A-102/"))).toBe(true);
+  });
+
+  it("discards queued prefetches when the sheet changes", () => {
+    const load = loader(new TileCache(ROOMY, ROOMY));
+
+    load.request(SHEET, [key(0)], noop);
+    load.prefetch("A-102", [key(0, 1), key(1, 1)]);
+    expect(load.stats().prefetchPending).toBe(2);
+
+    /* Navigating recomputes which sheets are adjacent, so every outstanding
+       guess is about the wrong neighbours. */
+    load.abortExcept("A-102");
+
+    expect(load.stats().prefetchPending).toBe(0);
   });
 });

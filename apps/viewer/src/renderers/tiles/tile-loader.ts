@@ -69,6 +69,19 @@ export async function loadTileIndex(
    Holding the queue here instead means it can be thrown away. */
 const MAX_IN_FLIGHT = 4;
 
+/* Of those slots, how many a speculative request may occupy.
+
+   One, and the gate below is stricter still: prefetch starts only when nothing
+   live is queued or in flight. The failure this guards against is the one 2.1
+   fixed — a second source of fetches competing with the sheet someone is waiting
+   for, which cost nearly four seconds a sheet change. A guess must never be in
+   front of a request.
+
+   One slot also bounds the damage when the guess is wrong: a 13 KB tile on a
+   1.6 Mbit/s link is ~65 ms of link time, so a live request that arrives mid
+   prefetch waits at most that long for a free connection. */
+const MAX_PREFETCH_IN_FLIGHT = 1;
+
 export class TileLoader {
   /* One request per tile, however many times it is asked for. Panning asks for
      the same tile on consecutive frames, and without this each frame would start
@@ -87,6 +100,15 @@ export class TileLoader {
   #needed = new Set<string>();
   #hits = 0;
   #misses = 0;
+  /* Speculative work, held apart from `#queue` so it can never be drained ahead
+     of it. Entries carry no `onReady`: nothing they fetch is on screen, so a
+     redraw on arrival would be a frame spent painting what is already painted. */
+  #prefetchQueue: { id: string; url: string }[] = [];
+  /* Which of `#inFlight` are speculative. They share the in-flight map so dedup
+     and abort work on them unchanged — a tile being prefetched must not be
+     fetched a second time when it is actually needed, which is the duplicate
+     that stranded pixels in 2.1. */
+  #prefetching = new Set<string>();
 
   constructor(
     private readonly baseUrl: string,
@@ -127,11 +149,7 @@ export class TileLoader {
       });
       this.#outstanding.set(id, { done, settle });
 
-      this.#queue.push({
-        id,
-        url: `${this.baseUrl}/tiles/${sheetId}/l${key.level}/${key.col}_${key.row}.webp`,
-        onReady,
-      });
+      this.#queue.push({ id, url: this.#urlFor(sheetId, key), onReady });
     }
 
     /* Replaced wholesale, which is what makes a tile leaving the viewport and
@@ -146,11 +164,60 @@ export class TileLoader {
     return ready;
   }
 
+  /* Tiles for a sheet nobody has opened, fetched on the chance they open it.
+
+     Not counted as hits or misses. A prefetch is not a need, and folding it into
+     the rate would answer "how often did we guess right?" under a name that says
+     "how often was it there when required?". A prefetched tile counts as a hit
+     later, when it is actually needed — which is the whole point of doing it. */
+  prefetch(sheetId: string, keys: TileKey[]) {
+    for (const key of keys) {
+      const id = tileId(sheetId, key);
+      /* `has` rather than `get`, so looking does not mark the tile recently
+         used. A speculative tile should not be able to save itself, or a wrong
+         guess would evict a sheet someone actually visited. */
+      if (this.cache.has(id)) continue;
+      if (this.#inFlight.has(id)) continue;
+      if (this.#queue.some((q) => q.id === id)) continue;
+      if (this.#prefetchQueue.some((q) => q.id === id)) continue;
+
+      this.#prefetchQueue.push({ id, url: this.#urlFor(sheetId, key) });
+    }
+
+    this.#pump();
+  }
+
+  #urlFor(sheetId: string, key: TileKey) {
+    return `${this.baseUrl}/tiles/${sheetId}/l${key.level}/${key.col}_${key.row}.webp`;
+  }
+
+  /* Live requests in flight. Prefetches share `#inFlight` for dedup, so the
+     count that decides whether the link is busy has to exclude them. */
+  get #liveInFlight() {
+    return this.#inFlight.size - this.#prefetching.size;
+  }
+
   #pump() {
     while (this.#inFlight.size < MAX_IN_FLIGHT && this.#queue.length > 0) {
       const next = this.#queue.shift();
       if (!next) break;
       this.#start(next.id, next.url, next.onReady);
+    }
+
+    /* Only when nothing live is outstanding at all — not merely when a slot is
+       free. A tile someone is waiting for must never share the link with a
+       guess, and the queue above can refill at any frame. */
+    if (this.#queue.length > 0 || this.#liveInFlight > 0) return;
+
+    while (
+      this.#prefetching.size < MAX_PREFETCH_IN_FLIGHT &&
+      this.#inFlight.size < MAX_IN_FLIGHT &&
+      this.#prefetchQueue.length > 0
+    ) {
+      const next = this.#prefetchQueue.shift();
+      if (!next) break;
+      this.#prefetching.add(next.id);
+      this.#start(next.id, next.url, () => {});
     }
   }
 
@@ -177,6 +244,7 @@ export class TileLoader {
       })
       .finally(() => {
         this.#inFlight.delete(id);
+        this.#prefetching.delete(id);
         this.#aborts.delete(id);
         this.#settle(id);
         this.#pump();
@@ -199,6 +267,11 @@ export class TileLoader {
     /* A dropped request still owes an answer to anything awaiting it. Without
        this, a sheet open abandoned mid-flight never resolves. */
     for (const entry of dropped) this.#settle(entry.id);
+    /* Every guess is discarded, including ones for the sheet being opened. The
+       neighbours change with the sheet, so the set is recomputed anyway, and
+       anything still genuinely wanted is about to be asked for as a live
+       request — which is where it belongs. */
+    this.#prefetchQueue = [];
     for (const [id, controller] of this.#aborts) {
       if (!id.startsWith(`${sheetId}/`)) controller.abort();
     }
@@ -233,7 +306,8 @@ export class TileLoader {
     return {
       hits: this.#hits,
       misses: this.#misses,
-      pending: this.#inFlight.size + this.#queue.length,
+      pending: this.#liveInFlight + this.#queue.length,
+      prefetchPending: this.#prefetchQueue.length + this.#prefetching.size,
     };
   }
 }

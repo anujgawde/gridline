@@ -107,6 +107,11 @@ export function CachePanel({ source }: CachePanelProps) {
 
           <Row label="In flight">
             <span className="gf-data">{stats.pending}</span>
+            {stats.prefetchPending > 0 && (
+              <span className="viewer-cache-note">
+                +{stats.prefetchPending} prefetch
+              </span>
+            )}
           </Row>
 
           <Row label="Level">

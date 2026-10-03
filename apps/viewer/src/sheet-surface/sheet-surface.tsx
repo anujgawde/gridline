@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { bus } from "@gridline/platform/bus";
 
@@ -27,6 +27,10 @@ interface Ready {
   source: SheetSource;
   index: SheetIndexEntry[];
 }
+
+/* One frozen instance, so "no neighbours" keeps a stable identity and does not
+   re-trigger the effect it feeds. */
+const EMPTY_NEIGHBOURS: string[] = [];
 
 export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
   const [ready, setReady] = useState<Ready | null>(null);
@@ -91,6 +95,21 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
     setControls(next);
   }, []);
 
+  /* The sheets either side of the open one, in set order — what someone reading
+     a set reaches for next. Computed here because ordering a set is the index's
+     business; the renderer is handed ids and has no opinion about adjacency.
+
+     Memoised so its identity is stable: it drives a prefetch effect, and a fresh
+     array every render would re-queue the neighbours on every render. */
+  const neighbours = useMemo(() => {
+    if (!ready) return EMPTY_NEIGHBOURS;
+    const at = ready.index.findIndex((sheet) => sheet.sheetId === current);
+    if (at === -1) return EMPTY_NEIGHBOURS;
+    return [ready.index[at - 1], ready.index[at + 1]]
+      .filter((sheet): sheet is SheetIndexEntry => Boolean(sheet))
+      .map((sheet) => sheet.sheetId);
+  }, [ready, current]);
+
   const takeStatsSource = useCallback((next: TileStatsSource) => {
     /* Wrapped in a thunk. A state setter handed a function treats it as an
        updater, so passing the getter directly would call it and store its
@@ -126,6 +145,7 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
             onPainted={announce}
             onControls={takeControls}
             onStatsSource={takeStatsSource}
+            neighbours={neighbours}
           />
         ) : (
           <FullPageRenderer

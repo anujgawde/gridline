@@ -54,8 +54,13 @@ export interface TileLoaderStats {
   hits: number;
   /* Needed and not resident, so a fetch had to be started. */
   misses: number;
-  /* Outstanding requests, queued or in flight. */
+  /* Outstanding live requests, queued or in flight. Excludes prefetches, which
+     are never what anything is waiting for. */
   pending: number;
+  /* Speculative requests outstanding. Reported apart from `pending` because a
+     backlog of guesses and a backlog of needs mean opposite things: the first is
+     spare capacity being used, the second is someone waiting. */
+  prefetchPending: number;
 }
 
 /* Everything the tiled renderer can say about itself: both counters plus where

@@ -67,6 +67,29 @@ export function visibleTiles(
   return keys;
 }
 
+/* Every tile up to and including `throughLevel`, regardless of where the view
+   is.
+
+   Not viewport-dependent, because this answers a question about a sheet nobody
+   is looking at yet: there is no view to clip against, and a sheet opens framed
+   to fit, so the whole of each coarse level is what a first paint needs. For
+   this set's geometry that is 5 tiles — level 0 is one, level 1 is 2x2. */
+export function tilesThroughLevel(
+  index: TileIndex,
+  throughLevel: number,
+): TileKey[] {
+  const keys: TileKey[] = [];
+  for (const level of index.levels) {
+    if (level.level > throughLevel) continue;
+    for (let row = 0; row < level.rows; row += 1) {
+      for (let col = 0; col < level.cols; col += 1) {
+        keys.push({ level: level.level, col, row });
+      }
+    }
+  }
+  return keys;
+}
+
 /* Where one tile lands on screen. */
 export function tileRect(
   index: TileIndex,

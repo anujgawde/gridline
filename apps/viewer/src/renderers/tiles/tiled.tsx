@@ -11,7 +11,13 @@ import type { DeepZoomResult } from "./deep-zoom";
 import { tileId } from "./tile-cache";
 import { loadTileIndex, TileLoader } from "./tile-loader";
 import type { TileIndex, TileStats, TileStatsSource } from "./types";
-import { fitScale, levelFor, tileRect, visibleTiles } from "./viewport";
+import {
+  fitScale,
+  levelFor,
+  tileRect,
+  tilesThroughLevel,
+  visibleTiles,
+} from "./viewport";
 import type { ViewState } from "./viewport";
 
 /* The tiled renderer.
@@ -51,8 +57,20 @@ const CACHE_BUDGET_BYTES = 256 * 1024 * 1024;
 
    Both figures are policy rather than measurement. What the measurement settles
    is that the pinned set needs a ceiling at all — without one it grew to 700 MB
-   over 140 sheets and was still climbing. */
-const PINNED_BUDGET_BYTES = 160 * 1024 * 1024;
+   over 140 sheets and was still climbing.
+
+   Raised from 160 MB to make room for prefetched neighbours. Two neighbours at
+   5 MB of coarse tiles is 10 MB, and taking that out of the existing ceiling
+   would have shrunk the revisit window from ~32 sheets to ~30 — paying for a
+   guess with a sheet somebody actually visited. The extra is granted rather than
+   borrowed. */
+const PINNED_BUDGET_BYTES = 170 * 1024 * 1024;
+
+/* How deep a neighbour is fetched ahead. Exactly what the pinned tier holds, so
+   a prefetched sheet arrives in the same state a revisited one is in — which is
+   the state worth 70 ms instead of 1310. Anything deeper is speculation about
+   where someone will zoom, paid for on a 1.6 Mbit/s link. */
+const PREFETCH_THROUGH_LEVEL = 1;
 
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 4;
@@ -67,6 +85,10 @@ interface Props {
   /* Handed upward the same way, as a getter rather than a value. Only this
      renderer has a tile cache, so only this one offers it. */
   onStatsSource?: (source: TileStatsSource) => void;
+  /* The sheets either side of this one, in set order. Passed in rather than
+     derived here: ordering a set is the index's business, and the renderer has
+     no opinion about what makes two sheets adjacent. */
+  neighbours?: string[];
 }
 
 /* Centred and scaled so the whole sheet is visible. Shared by the initial open
@@ -87,6 +109,7 @@ export function TiledRenderer({
   onPainted,
   onControls,
   onStatsSource,
+  neighbours,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -118,6 +141,7 @@ export function TiledRenderer({
     hits: 0,
     misses: 0,
     pending: 0,
+    prefetchPending: 0,
     level: 0,
     scale: 0,
   });
@@ -408,6 +432,38 @@ export function TiledRenderer({
       cancelled = true;
     };
   }, [sheetId, source, onPainted]);
+
+  /* With the sheet on screen, line up its neighbours.
+
+     Gated on the paint rather than started alongside it. The loader will not
+     begin a speculative fetch while anything live is outstanding, but a tile
+     index is a plain fetch outside that queue — so asking for two of them mid
+     sheet-open would put bytes on the link the queue cannot hold back. After the
+     paint there is nothing to get in front of. */
+  useEffect(() => {
+    if (paintedSheet !== sheetId) return;
+    const loader = loaderRef.current;
+    if (!loader || !neighbours?.length) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      for (const neighbour of neighbours) {
+        const index = await loadTileIndex(
+          source.baseUrl.replace(/\/$/, ""),
+          neighbour,
+        );
+        /* A neighbour that will not resolve is not an error worth surfacing —
+           nobody asked for it. It simply costs what it always cost. */
+        if (cancelled || !index) continue;
+        loader.prefetch(neighbour, tilesThroughLevel(index, PREFETCH_THROUGH_LEVEL));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paintedSheet, sheetId, neighbours, source]);
 
   /* The cache outlives a sheet change on purpose — going back to a sheet you
      just left should not re-fetch it. It is released when the renderer goes
