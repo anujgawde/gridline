@@ -19,8 +19,10 @@ Pre-alpha. The workspace packages:
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
 - **`apps/navigator`** — `@gridline/navigator`. The second remote. Exposes
-  `./SetNavigator` and runs standalone on port 4102. A placeholder today; the
-  sheet list is being built.
+  `./SetNavigator` with two layouts: `grid`, the whole set full-screen
+  (`?view=sheets` in the shell), and `panel`, beside the drawing. Runs standalone
+  on port 4102 in the grid layout. The grid currently renders every sheet as a
+  DOM card — the unoptimised version, kept until its scroll cost is measured.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -36,9 +38,9 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, the navigator's sheet list, the compare
-remote, and the
-primitives the navigator needs — the set in `platform` today is the one the
+Still to build: a pipeline per app, the navigator's virtualised grid,
+thumbnails and filters, the compare remote, and the primitives the navigator
+needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 
 ## Commands
@@ -55,8 +57,8 @@ viewer calls, not a full library.
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 4 packages; `test` runs in `platform`, `setgen`,
-`tiler` and `viewer`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
+`build` and `typecheck` run in 4 packages; `test` runs in `navigator`,
+`platform`, `setgen`, `tiler` and `viewer`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
 outside any package's `dist/`, and takes about 20 seconds, so it has no business
 in a build graph.
 

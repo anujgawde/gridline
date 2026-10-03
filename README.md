@@ -84,7 +84,7 @@ gridline/
 ├─ apps/
 │  ├─ shell/             # Host app
 │  ├─ viewer/            # Sheet rendering remote
-│  ├─ navigator/         # Set browsing remote (placeholder)
+│  ├─ navigator/         # Set browsing remote (in progress)
 │  └─ compare/           # Revision diff remote (planned)
 ├─ tools/
 │  ├─ serve.mjs          # Static file server for the production builds
@@ -183,7 +183,7 @@ Pre-alpha.
 **Not built yet**
 
 - Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
-- The navigator's sheet list (the remote exists and loads in the shell as an empty panel)
+- The navigator's virtualised grid, thumbnails and filters. The remote loads in the shell, and `?view=sheets` lists all 1,500 sheets, but every card is still a DOM node
 - The compare remote
 - Markup
 - Per-app deployment pipelines
