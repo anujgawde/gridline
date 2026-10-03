@@ -26,6 +26,10 @@
 }
 
 .sheet-grid-view {
+  /* 192px minimum card, the mockup's desktop card width. Shared by both grids
+     so they always choose the same number of columns. */
+  --sheet-grid-columns: repeat(auto-fill, minmax(calc(var(--space-12) * 2), 1fr));
+
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -55,19 +59,64 @@
   color: var(--text-secondary);
 }
 
-/* One grid for the whole set: the section wrappers dissolve into it, so the
-   headings span every column and stick to the top while their cards scroll. */
+/* The scroll container, in both grids. */
 .sheet-grid {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+
+/* Full grid: one grid for the whole set. The section wrappers dissolve into it,
+   so the headings span every column and stick to the top while their cards
+   scroll. */
+.sheet-grid-full {
   display: grid;
-  /* 192px minimum card, the mockup's desktop card width. */
-  grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-12) * 2), 1fr));
+  grid-template-columns: var(--sheet-grid-columns);
   grid-auto-rows: max-content;
   align-content: start;
   gap: var(--space-3);
   padding: 0 var(--space-4) var(--space-6);
+}
+
+/* Virtual grid: a canvas the height of the whole list, with each drawn row
+   placed at its computed offset. Its margins match the full grid's padding. */
+.sheet-grid-canvas {
+  position: relative;
+  margin: 0 var(--space-4) var(--space-6);
+}
+
+.sheet-grid-row {
+  display: grid;
+  grid-template-columns: var(--sheet-grid-columns);
+  gap: var(--space-3);
+}
+
+.sheet-grid-canvas > .sheet-grid-placed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+/* Drawn rows' headings sit above the pinned one, so the next section's heading
+   slides over the current one as it arrives — what the full grid does. */
+.sheet-grid-canvas > .sheet-grid-section-heading.sheet-grid-placed {
+  z-index: 2;
+}
+
+.sheet-grid > .sheet-grid-pinned {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Measures a heading and a card row; never seen. Same width as the canvas. */
+.sheet-grid-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .sheet-grid-section {

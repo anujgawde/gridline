@@ -2,27 +2,29 @@ import { useEffect, useMemo, useState } from "react";
 
 import { loadSheetIndex, loadSheetSource } from "../sources";
 import type { SheetIndexEntry } from "../sources";
+import { FullGrid } from "./full-grid";
+import { gridMode } from "./grid-mode";
+import { markIndexLoaded } from "./grid-shown";
 import { groupByDiscipline } from "./group";
+import { VirtualGrid } from "./virtual-grid";
 
 type Load =
   | { state: "loading" }
   | { state: "failed" }
   | { state: "ready"; sheets: SheetIndexEntry[] };
 
-/* Every sheet in the set rendered as a DOM card, all at once. Deliberately the
-   slow version: it is the "before" the virtualised grid is measured against,
-   and that reading cannot be recovered once this is replaced.
-
-   The thumbnail box is drawn at its final size now, empty, so the card being
-   measured is the same card the fast version will render. */
+/* The whole set, grouped by discipline. Drawn by the virtual grid unless
+   `?grid=full` asks for the baseline. */
 export function SheetGrid() {
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [mode] = useState(gridMode);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const source = await loadSheetSource();
       const sheets = source ? await loadSheetIndex(source) : null;
+      if (sheets) markIndexLoaded();
       if (!cancelled) setLoad(sheets ? { state: "ready", sheets } : { state: "failed" });
     })();
     return () => {
@@ -43,6 +45,8 @@ export function SheetGrid() {
     );
   }
 
+  const Grid = mode === "full" ? FullGrid : VirtualGrid;
+
   return (
     <div className="sheet-grid-view">
       <header className="sheet-grid-header">
@@ -52,29 +56,7 @@ export function SheetGrid() {
         </span>
       </header>
 
-      <div className="sheet-grid" data-sheet-count={load.sheets.length}>
-        {groups.map((group) => (
-          <section key={group.discipline} className="sheet-grid-section">
-            <h3 className="sheet-grid-section-heading">
-              <span className="sheet-grid-section-name">
-                {group.discipline} · {group.name}
-              </span>
-              <span className="sheet-grid-section-count">
-                {group.sheets.length} sheets
-              </span>
-            </h3>
-            {group.sheets.map((sheet) => (
-              <article key={sheet.sheetId} className="sheet-card">
-                <div className="sheet-card-thumb" aria-hidden="true" />
-                <div className="sheet-card-body">
-                  <span className="sheet-card-number">{sheet.sheetId}</span>
-                  <span className="sheet-card-title">{sheet.title}</span>
-                </div>
-              </article>
-            ))}
-          </section>
-        ))}
-      </div>
+      <Grid groups={groups} count={load.sheets.length} />
     </div>
   );
 }

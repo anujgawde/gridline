@@ -1,0 +1,16 @@
+import { describe, expect, it } from "vitest";
+
+import { gridMode } from "../grid-mode";
+
+describe("gridMode", () => {
+  it("is virtual by default", () => {
+    expect(gridMode("")).toBe("virtual");
+    expect(gridMode("?view=sheets")).toBe("virtual");
+  });
+
+  it("is full only when asked for exactly", () => {
+    expect(gridMode("?view=sheets&grid=full")).toBe("full");
+    expect(gridMode("?grid=FULL")).toBe("virtual");
+    expect(gridMode("?grid=")).toBe("virtual");
+  });
+});
