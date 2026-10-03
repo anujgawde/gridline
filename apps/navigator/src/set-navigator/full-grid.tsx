@@ -6,7 +6,9 @@ import type { DisciplineGroup } from "./types";
 
 /* Every sheet in the set as a DOM card, all at once. The baseline the virtual
    grid is measured against, reachable at `?grid=full`. */
-export function FullGrid({ groups, count }: { groups: DisciplineGroup[]; count: number }) {
+/* No thumbnails: this grid is the baseline as it was measured, and it renders
+   no thumbnail provider, so its cards keep their empty boxes. */
+export function FullGrid({ groups, count }: { groups: DisciplineGroup[]; count: number; baseUrl: string }) {
   useEffect(markGridShown, []);
 
   return (

@@ -11,7 +11,7 @@ import { VirtualGrid } from "./virtual-grid";
 type Load =
   | { state: "loading" }
   | { state: "failed" }
-  | { state: "ready"; sheets: SheetIndexEntry[] };
+  | { state: "ready"; sheets: SheetIndexEntry[]; baseUrl: string };
 
 /* The whole set, grouped by discipline. Drawn by the virtual grid unless
    `?grid=full` asks for the baseline. */
@@ -25,7 +25,13 @@ export function SheetGrid() {
       const source = await loadSheetSource();
       const sheets = source ? await loadSheetIndex(source) : null;
       if (sheets) markIndexLoaded();
-      if (!cancelled) setLoad(sheets ? { state: "ready", sheets } : { state: "failed" });
+      if (!cancelled) {
+        setLoad(
+          source && sheets
+            ? { state: "ready", sheets, baseUrl: source.baseUrl }
+            : { state: "failed" },
+        );
+      }
     })();
     return () => {
       cancelled = true;
@@ -56,7 +62,7 @@ export function SheetGrid() {
         </span>
       </header>
 
-      <Grid groups={groups} count={load.sheets.length} />
+      <Grid groups={groups} count={load.sheets.length} baseUrl={load.baseUrl} />
     </div>
   );
 }

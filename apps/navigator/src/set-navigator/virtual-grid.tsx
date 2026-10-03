@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { thumbnailsEnabled } from "./grid-mode";
 import { markGridShown } from "./grid-shown";
+import { ThumbnailLoader } from "./thumbnail-loader";
 import { SectionLabel, SheetCard } from "./sheet-card";
-import type { DisciplineGroup, RowMetrics, RowRange } from "./types";
+import type { DisciplineGroup, RowMetrics, RowRange, ThumbnailServices } from "./types";
+import { ThumbnailContext } from "./use-thumbnail";
 import { layoutRows, sectionAt, visibleRows } from "./virtual-rows";
+import { VisibilityWatcher } from "./visibility";
 
 /* Rows drawn beyond each edge of the viewport, as a fraction of its height, so
    a fast scroll finds the next rows already in the DOM. */
@@ -22,13 +26,30 @@ interface Drawn {
    styled exactly as the real ones — rather than written down here. A card's
    height follows its width, which follows the viewport, so any constant would
    be right at one window size only. */
-export function VirtualGrid({ groups, count }: { groups: DisciplineGroup[]; count: number }) {
+export function VirtualGrid({
+  groups,
+  count,
+  baseUrl,
+}: {
+  groups: DisciplineGroup[];
+  count: number;
+  baseUrl: string;
+}) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const probeHeadingRef = useRef<HTMLHeadingElement>(null);
   const probeRowRef = useRef<HTMLDivElement>(null);
 
   const [metrics, setMetrics] = useState<RowMetrics | null>(null);
   const [view, setView] = useState<Drawn>({ range: { start: 0, end: 0 }, section: 0 });
+
+  const thumbnails = useMemo<ThumbnailServices | null>(
+    () =>
+      thumbnailsEnabled()
+        ? { loader: new ThumbnailLoader(baseUrl), watcher: new VisibilityWatcher() }
+        : null,
+    [baseUrl],
+  );
+  useEffect(() => () => thumbnails?.watcher.disconnect(), [thumbnails]);
 
   const layout = useMemo(() => (metrics ? layoutRows(groups, metrics) : null), [groups, metrics]);
 
@@ -102,61 +123,63 @@ export function VirtualGrid({ groups, count }: { groups: DisciplineGroup[]; coun
   const pinned = groups[view.section];
 
   return (
-    <div
-      ref={scrollerRef}
-      className="sheet-grid sheet-grid-virtual"
-      onScroll={update}
-      /* Written only once rows are drawn, so a reader of this attribute knows
-         the grid has rendered, as it does for the full grid. */
-      data-sheet-count={layout ? count : undefined}
-    >
-      {/* The current section's heading, pinned. A heading row that has scrolled
-          out of the drawn range is removed, and position: sticky goes with it,
-          so the pin has to be a separate element. Takes no layout space. */}
-      {layout && metrics && pinned && (
-        <h3
-          className="sheet-grid-section-heading sheet-grid-pinned"
-          style={{ marginBottom: -metrics.headingHeight }}
-          aria-hidden="true"
-        >
-          <SectionLabel group={pinned} />
-        </h3>
-      )}
-
-      <div className="sheet-grid-canvas" style={{ height: layout?.height ?? 0 }}>
-        {sample && (
-          <div className="sheet-grid-probe" aria-hidden="true">
-            <h3 ref={probeHeadingRef} className="sheet-grid-section-heading">
-              <SectionLabel group={sample} />
-            </h3>
-            <div ref={probeRowRef} className="sheet-grid-row">
-              {sample.sheets[0] && <SheetCard sheet={sample.sheets[0]} />}
-            </div>
-          </div>
+    <ThumbnailContext.Provider value={thumbnails}>
+      <div
+        ref={scrollerRef}
+        className="sheet-grid sheet-grid-virtual"
+        onScroll={update}
+        /* Written only once rows are drawn, so a reader of this attribute knows
+           the grid has rendered, as it does for the full grid. */
+        data-sheet-count={layout ? count : undefined}
+      >
+        {/* The current section's heading, pinned. A heading row that has scrolled
+            out of the drawn range is removed, and position: sticky goes with it,
+            so the pin has to be a separate element. Takes no layout space. */}
+        {layout && metrics && pinned && (
+          <h3
+            className="sheet-grid-section-heading sheet-grid-pinned"
+            style={{ marginBottom: -metrics.headingHeight }}
+            aria-hidden="true"
+          >
+            <SectionLabel group={pinned} />
+          </h3>
         )}
 
-        {layout?.rows.slice(view.range.start, view.range.end).map((row) =>
-          row.kind === "heading" ? (
-            <h3
-              key={row.key}
-              className="sheet-grid-section-heading sheet-grid-placed"
-              style={{ transform: `translateY(${row.top}px)` }}
-            >
-              <SectionLabel group={row.group} />
-            </h3>
-          ) : (
-            <div
-              key={row.key}
-              className="sheet-grid-row sheet-grid-placed"
-              style={{ transform: `translateY(${row.top}px)` }}
-            >
-              {row.sheets.map((sheet) => (
-                <SheetCard key={sheet.sheetId} sheet={sheet} />
-              ))}
+        <div className="sheet-grid-canvas" style={{ height: layout?.height ?? 0 }}>
+          {sample && (
+            <div className="sheet-grid-probe" aria-hidden="true">
+              <h3 ref={probeHeadingRef} className="sheet-grid-section-heading">
+                <SectionLabel group={sample} />
+              </h3>
+              <div ref={probeRowRef} className="sheet-grid-row">
+                {sample.sheets[0] && <SheetCard sheet={sample.sheets[0]} thumbnail={false} />}
+              </div>
             </div>
-          ),
-        )}
+          )}
+
+          {layout?.rows.slice(view.range.start, view.range.end).map((row) =>
+            row.kind === "heading" ? (
+              <h3
+                key={row.key}
+                className="sheet-grid-section-heading sheet-grid-placed"
+                style={{ transform: `translateY(${row.top}px)` }}
+              >
+                <SectionLabel group={row.group} />
+              </h3>
+            ) : (
+              <div
+                key={row.key}
+                className="sheet-grid-row sheet-grid-placed"
+                style={{ transform: `translateY(${row.top}px)` }}
+              >
+                {row.sheets.map((sheet) => (
+                  <SheetCard key={sheet.sheetId} sheet={sheet} />
+                ))}
+              </div>
+            ),
+          )}
+        </div>
       </div>
-    </div>
+    </ThumbnailContext.Provider>
   );
 }

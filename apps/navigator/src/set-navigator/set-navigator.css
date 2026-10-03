@@ -161,10 +161,28 @@
 }
 
 /* ARCH E1 is 42 x 30 in, landscape, so the box matches the sheet's shape. */
+/* Positioned so the image inside is out of flow. The virtual grid lays rows out
+   from a card measured without an image, so nothing that arrives later may
+   change a card's height — an image in flow did, by its own square shape. */
 .sheet-card-thumb {
+  position: relative;
   aspect-ratio: 7 / 5;
+  overflow: hidden;
   background: var(--surface-sunken);
   border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+/* The level-0 tile is a 512 px square: the sheet fills its top 366 px and the
+   rest is filler, as on every edge tile. Scaled to the box's width and pinned
+   to the top, the box's 7:5 shows the sheet and crops the filler — 366 / 512 is
+   7:5 to within a pixel. */
+.sheet-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
 }
 
 .sheet-card-body {

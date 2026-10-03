@@ -1,4 +1,6 @@
 import type { SheetIndexEntry } from "../sources";
+import type { ThumbnailLoader } from "./thumbnail-loader";
+import type { VisibilityWatcher } from "./visibility";
 
 export type SetNavigatorLayout = "grid" | "panel";
 
@@ -42,6 +44,18 @@ export interface RowLayout {
   rows: GridRow[];
   /* From the top of the first row to the bottom of the last. */
   height: number;
+}
+
+/* A card's thumbnail. `idle` is not requested — off screen, or withdrawn when
+   its card left the screen before it arrived. */
+export type ThumbnailState =
+  | { status: "idle" | "loading" | "failed" }
+  | { status: "loaded"; url: string };
+
+/* What a grid provides for its cards to draw thumbnails with. */
+export interface ThumbnailServices {
+  loader: ThumbnailLoader;
+  watcher: VisibilityWatcher;
 }
 
 /* Rows to render, as a half-open range of indexes into `RowLayout.rows`. */
