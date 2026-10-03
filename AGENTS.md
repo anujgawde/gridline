@@ -21,8 +21,9 @@ Pre-alpha. The workspace packages:
 - **`apps/navigator`** — `@gridline/navigator`. The second remote. Exposes
   `./SetNavigator` with two layouts: `grid`, the whole set full-screen
   (`?view=sheets` in the shell), and `panel`, beside the drawing. Runs standalone
-  on port 4102 in the grid layout. The grid currently renders every sheet as a
-  DOM card — the unoptimised version, kept until its scroll cost is measured.
+  on port 4102 in the grid layout. The grid is virtualised: only the rows near
+  the viewport are in the DOM. `?grid=full` draws every card instead, kept as
+  the measured baseline.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -38,8 +39,7 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, the navigator's virtualised grid,
-thumbnails and filters, the compare remote, and the primitives the navigator
+Still to build: a pipeline per app, the navigator's thumbnails and filters, the compare remote, and the primitives the navigator
 needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 

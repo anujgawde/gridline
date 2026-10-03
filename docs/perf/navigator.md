@@ -39,7 +39,7 @@ before it shows it in dropped frames.
 ### The control
 
 `PERF_JANK=1` stalls the main thread for 80 ms on every scroll event. It exists
-to prove the spec can see a regression, and it does:
+to prove the spec can see a regression, and it does. Taken on the full grid:
 
 | | normal | `PERF_JANK=1` (n=1) |
 |---|---|---|
@@ -54,42 +54,64 @@ file and never replaces the baseline.
 
 ## Results
 
-**Before:** every sheet rendered as a DOM card. **After:** virtualised — to be
-measured.
+**Before:** every sheet rendered as a DOM card, `?grid=full`. **After:** the
+virtual grid, which draws only the rows near the viewport plus half a viewport
+on each side. Both columns were taken in one session, one run after the other;
+readings taken in different sessions are not compared here.
+
+**Grid shown** is the navigator's own span, from the sheet index arriving to the
+grid painted, so no network time is in it. **Load: longest task** is the
+longest the main thread was blocked while the page loaded.
 
 | metric | before | after |
 |---|---|---|
-| DOM elements | 7559 | |
-| JS heap | 8 MB | |
-| frames drawn | 941 (941–942) | |
-| frame median | 17 ms (17–17) | |
-| frame p95 | 18 ms (18–18) | |
-| frame worst | 40 ms (35–41) | |
-| frames > 25 ms | 1 (1–1) | |
-| main-thread rendering | 1565 ms (1315–1604) | |
+| grid shown | 188 ms (186–190) | 73 ms (61–81) |
+| load: longest task | 120 ms (119–123) | 65 ms (63–94) |
+| DOM elements | 7559 | 264 |
+| JS heap | 9 MB | 7 MB |
+| frames drawn | 941 (941–942) | 941 (941–941) |
+| frame median | 17 ms (17–17) | 17 ms (17–17) |
+| frame p95 | 18 ms (17–18) | 18 ms (17–18) |
+| frame worst | 37 ms (28–46) | 35 ms (35–50) |
+| frames > 25 ms | 1 (1–1) | 1 (1–1) |
+| main-thread rendering | 1399 ms (1371–1660) | 1520 ms (1368–1579) |
 
 ### What the "before" shows
 
-The unoptimised grid does not stutter visibly at 4x: frames arrive at display
-rate and one frame in a full scroll runs long. Its cost is elsewhere — 7,559
-elements resident for the life of the page, and about 1.6 s of main-thread
-rendering work over a 15-second scroll.
+The full grid does not stutter visibly at 4x: frames arrive at display rate and
+one frame in a full scroll runs long. Its cost is elsewhere — 7,559 elements
+resident for the life of the page, a 188 ms render before the list appears, and
+about 1.4 s of main-thread rendering work over a 15-second scroll.
 
-That frames the comparison. A virtualised grid renders cards as they scroll
-into view, which is main-thread work of its own, so its main-thread time is not
-expected to fall and may rise. Its case rests on DOM size and memory, with frame
-pacing held where it is.
+### What changed
 
-**Worst frame is noisy.** Separate sessions on the same machine have read 22–50
-ms. A gate on it must be set from the worst reading, not the median.
+**The page is 28 times smaller and appears 2.6 times sooner.** DOM elements fall
+from 7,559 to 264, the grid is on screen in 73 ms
+instead of 188, the longest block during load halves, and the heap is 2 MB
+lighter.
+
+**Frame pacing is unchanged**, which was the requirement: median and p95 are
+identical, and the worst frame sits inside the noise of both.
+
+**Main-thread time during the scroll did not move.** The virtual grid renders
+rows as they arrive, which is main-thread work the full grid never does, while
+having far less to style and paint; how those two split has not been measured.
+The two ranges overlap almost entirely, and the same full grid has read
+1315–1945 ms across sessions on this machine, so neither direction is a claim
+this data supports.
+
+**Worst frame is noisy.** Separate sessions on the same machine have read 20–51
+ms, on both grids. A gate on it must be set from the worst reading, not the median.
 
 ## Reproduce
 
 ```sh
 pnpm build && pnpm serve           # in one terminal
-pnpm exec playwright test navigator
+pnpm exec playwright test navigator                    # after: the virtual grid
+PERF_GRID=full pnpm exec playwright test navigator     # before: every card
 PERF_JANK=1 PERF_RUNS=1 pnpm exec playwright test navigator   # the control
 ```
 
-Results are written to `perf-results/navigator-scroll.json`, and the control to
-`perf-results/navigator-scroll-jank.json`.
+Each grid writes its own file, `perf-results/navigator-scroll-virtual.json` and
+`perf-results/navigator-scroll-full.json`; a control run adds `-jank` to the
+name.

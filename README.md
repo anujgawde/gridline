@@ -183,7 +183,7 @@ Pre-alpha.
 **Not built yet**
 
 - Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
-- The navigator's virtualised grid, thumbnails and filters. The remote loads in the shell, and `?view=sheets` lists all 1,500 sheets, but every card is still a DOM node
+- The navigator's thumbnails and filters. `?view=sheets` lists all 1,500 sheets in a virtualised grid; the cards' thumbnail boxes are still empty
 - The compare remote
 - Markup
 - Per-app deployment pipelines
