@@ -84,7 +84,7 @@ gridline/
 ├─ apps/
 │  ├─ shell/             # Host app
 │  ├─ viewer/            # Sheet rendering remote
-│  ├─ navigator/         # Set browsing remote (planned)
+│  ├─ navigator/         # Set browsing remote (placeholder)
 │  └─ compare/           # Revision diff remote (planned)
 ├─ tools/
 │  ├─ serve.mjs          # Static file server for the production builds
@@ -169,8 +169,8 @@ Pre-alpha.
 **Built**
 
 - Platform package: design tokens, the event bus, and ten UI primitives.
-- Shell: renders its chrome from the tokens and loads the viewer at runtime. Active-sheet state crosses the bus between them.
-- Both apps run from their production builds on separate origins.
+- Shell: renders its chrome from the tokens and loads the viewer and the navigator at runtime. Active-sheet state crosses the bus between them.
+- All three apps run from their production builds on separate origins.
 - The synthetic drawing set generator.
 - `tools/tiler`, which builds the tile pyramid offline.
 - Viewer: picks a tile level from the viewport, keeps memory within two budgets, and prefetches neighbouring sheets while the network is idle. Includes a canvas toolbar, a properties panel, and a cache readout behind `?perf=1`.
@@ -183,7 +183,8 @@ Pre-alpha.
 **Not built yet**
 
 - Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
-- The navigator and compare remotes
+- The navigator's sheet list (the remote exists and loads in the shell as an empty panel)
+- The compare remote
 - Markup
 - Per-app deployment pipelines
 

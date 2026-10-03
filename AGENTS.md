@@ -5,7 +5,7 @@ architecture thesis about rendering, memory, and microfrontend boundaries.
 
 ## Current state
 
-Pre-alpha. Two workspace packages exist:
+Pre-alpha. The workspace packages:
 
 - **`packages/platform`** — `@gridline/platform`. Design tokens as CSS custom
   properties, the event bus with its zod contracts, and the UI primitives under
@@ -14,9 +14,13 @@ Pre-alpha. Two workspace packages exist:
   other copy.
 - **`apps/shell`** — `@gridline/shell`. Rspack + React. Renders the chrome from
   the tokens and is the Module Federation host. Loads the viewer's sheet surface
-  at runtime and shows active-sheet state published on the bus.
+  and the navigator's panel at runtime, and shows active-sheet state published on
+  the bus.
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
+- **`apps/navigator`** — `@gridline/navigator`. The second remote. Exposes
+  `./SetNavigator` and runs standalone on port 4102. A placeholder today; the
+  sheet list is being built.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -25,14 +29,15 @@ Pre-alpha. Two workspace packages exist:
 The shell holds no remote addresses. It reads `public/remotes.json` at startup and
 registers remotes at runtime, so the build contains no remote URL.
 
-`tools/` holds `serve.mjs` and `setgen/`; `docs/` holds `perf/` only — there are
+`tools/` holds `serve.mjs`, `setgen/` and `tiler/`; `docs/` holds `perf/` only — there are
 no ADRs yet. The directory tree in `README.md` is partly planned, so verify a
 path exists before referencing it.
 
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, the navigator and compare remotes, and the
+Still to build: a pipeline per app, the navigator's sheet list, the compare
+remote, and the
 primitives the navigator needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 
@@ -50,15 +55,21 @@ viewer calls, not a full library.
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 3 packages; `test` runs in `platform`, `setgen`,
+`build` and `typecheck` run in 4 packages; `test` runs in `platform`, `setgen`,
 `tiler` and `viewer`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
 outside any package's `dist/`, and takes about 20 seconds, so it has no business
 in a build graph.
 
-`pnpm dev` serves the shell on 4100 and the viewer on 4101. Each remote gets its
-own port, assigned in its `rspack.config.ts`. `pnpm serve` adds the generated
-sheet set on 4200, served by `@gridline/setgen` — a third origin, because in
-production drawing data comes from a CDN rather than from an app's own origin.
+`pnpm dev` serves the shell on 4100, the viewer on 4101 and the navigator on
+4102. Each remote gets its own port, assigned in its `rspack.config.ts`.
+`pnpm serve` adds the generated sheet set on 4200, served by `@gridline/setgen` —
+a separate origin, because in production drawing data comes from a CDN rather
+than from an app's own origin.
+
+`pnpm serve` runs every server under one Turborepo task, and stopping any one of
+them stops them all. To take a single remote down for the degradation check,
+serve the others by name instead:
+`pnpm --filter @gridline/shell --filter @gridline/viewer --filter @gridline/setgen --parallel run serve`.
 
 `pnpm perf` needs `pnpm build && pnpm serve` already running and never starts a
 server itself, for the same reason `serve` never triggers a build: a spec that
@@ -194,6 +205,12 @@ These are not open to convenience:
   starts — with no error any boundary can catch. Declared remotes use a
   `remoteEntry.js` entry, which resolves on first use. Manifests are for remotes
   registered at runtime, after the shell has rendered.
+- **A remote's container global must not shadow a browser global.** The
+  container is published on `window` under the remote's name unless `library`
+  says otherwise, so a remote named `navigator` reads back the browser's
+  Navigator object and fails with RUNTIME-002 ("does not contain init"). The
+  build reports success. Set `library: { type: "global", name: "gridline_<name>" }`
+  whenever the name collides; the remote's name itself does not change.
 - **Only modules that hold state in module scope are federation singletons.**
   The bus is shared because it keeps its subscriber map there, and two copies
   are two unconnected mailboxes. UI primitives hold no state, so each app
