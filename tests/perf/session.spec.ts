@@ -299,6 +299,18 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
   const firstTen = painted.slice(0, 10);
   const lastTen = painted.slice(-10);
 
+  /* Sheet change is bimodal once anything is fetched ahead — a hit paints in
+     ~26 ms, a miss costs ~1310 — so the share of fast changes says what the
+     median cannot. The first sheet is excluded: it carries the cold start, and
+     nothing could have been prefetched before it. */
+  const changes = painted.slice(1).map((r) => r.msToPaint ?? 0);
+  const fastSheetChanges = changes.filter(
+    (ms) => ms < BUDGETS.sessionSequential.fastSheetChangeMs,
+  ).length;
+  const fastSheetChangePercent = changes.length
+    ? Math.round((fastSheetChanges / changes.length) * 100)
+    : 0;
+
   const result = {
     takenAt: new Date().toISOString(),
     profile: PROFILE.label,
@@ -333,6 +345,13 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
         readings.find((r) => total(r) > MEMORY_MARKER_MB)?.ordinal ?? null,
     },
     revisit: summarize(revisits.map((r) => r.ms)),
+    /* What the median of a bimodal measurement hides. */
+    fastSheetChanges: {
+      underMs: BUDGETS.sessionSequential.fastSheetChangeMs,
+      count: fastSheetChanges,
+      of: changes.length,
+      percent: fastSheetChangePercent,
+    },
     /* Per tile needed during the revisit phase only. This is what says whether
        the pinned coarse tiles are earning the memory they hold. */
     revisitTiles: { ...revisitTiles, hitRatePercent: revisitHitRate },
@@ -360,6 +379,10 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
   console.log(`    memory peak                 ${result.memoryMb.peak} MB`);
   console.log(`      of which canvas pixels    ${result.memoryMb.pixelsAtPeak} MB`);
   console.log(`    sheet revisit               ${format(result.revisit)}`);
+  console.log(
+    `    sheet changes under ${BUDGETS.sessionSequential.fastSheetChangeMs} ms   ` +
+      `${fastSheetChanges}/${changes.length} (${fastSheetChangePercent}%)`,
+  );
   console.log(`    sheets painted              ${painted.length}/${SHEETS}`);
   if (result.memoryMb.exceededAt) {
     console.log(`    passes ${MEMORY_MARKER_MB} MB at sheet        ${result.memoryMb.exceededAt}`);
@@ -378,17 +401,20 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
      test, so it is measured and never graded. */
   if (!isGated(RENDERER)) return;
 
-  /* Every figure in budgets.ts was taken from a stride walk. Asserting them
-     against a sequential one would grade a measurement from one experiment with
-     a budget from another — the sequential walk visits neighbours, so its sheet
-     change and memory curve are a different population, not a better score on
-     the same one. It is measured and recorded here; gates for it get derived
-     from its own readings in 2.7. */
+  /* The session budgets were all taken from a stride walk, so a sequential run
+     is graded on its own figure instead — asserting one experiment's numbers
+     against another's budget is the error budgets.ts warns about. */
   if (WALK !== "stride") {
+    expect(painted.length, "the session did not paint every sheet").toBe(SHEETS);
+
+    /* Nothing to claim when prefetch is switched off: this run *is* the
+       baseline the gate exists to improve on. */
+    if (!PREFETCH) return;
+
     expect(
-      painted.length,
-      "the session did not paint every sheet",
-    ).toBe(SHEETS);
+      fastSheetChangePercent,
+      "too few sheet changes served from memory — prefetch is not landing, see tests/perf/budgets.ts",
+    ).toBeGreaterThanOrEqual(BUDGETS.sessionSequential.minFastSheetChangePercent);
     return;
   }
 

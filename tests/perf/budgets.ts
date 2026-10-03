@@ -46,57 +46,93 @@ export const BUDGETS = {
   },
 
   /* A 50-sheet session. One run rather than a median of several, because it
-     takes two minutes; these are the softest gates here for that reason. */
+     takes two minutes; these are the softest gates here for that reason.
+
+     These grade the `stride` walk only — every figure was taken from it, and a
+     sequential walk is a different population rather than a better score on the
+     same one. Its gate is below. */
   session: {
-    // 1312 ms measured
+    // 1309 ms measured (1301–1332)
     sheetChangeMs: 1640,
-    /* 104 ms measured, and set from that rather than from the median.
+    /* 122 ms measured (88–132), set from the worst reading rather than the
+       median.
 
        Revisit is bimodal since the pinned coarse tiles gained a ceiling. A sheet
-       still inside the pinned budget repaints from memory in ~73 ms; one past it
-       refetches from the HTTP cache and decodes, ~102-104 ms. The spec samples
-       three sheets without knowing which side of the ceiling they fall on, so its
-       median swings between the two populations depending on the draw. A gate on
-       that median has to clear the slower population or it fails on a sample that
-       happened to pick older sheets.
+       still inside the pinned budget repaints from memory; one past it refetches
+       from the HTTP cache and decodes. The spec samples three sheets without
+       knowing which side of the ceiling they fall on, so its median swings
+       between the two populations depending on the draw, and a gate on that
+       median has to clear the slower one.
 
-       Readings behind it: 102, 104, 104 past the ceiling; 73, 93 inside it. */
-    revisitMs: 130,
-    /* 173 MB measured over 140 sheets, 171 MB over 50 — set from the worse of
-       the two. Was 324, from a 259 MB reading taken while memory was still
-       climbing unbounded; pixels now plateau at the 160 MB pinned budget from
-       sheet 33 onward, so the old gate would pass a 1.9x regression. */
-    peakMemoryMb: 216,
-    // 30 ms measured
-    worstFrameMs: 38,
+       Raised from 130 after prefetch landed, and the cause is understood rather
+       than absorbed: prefetched neighbours occupy the pinned tier alongside
+       visited sheets, so a visited sheet is evicted sooner and a revisit lands
+       on the slow side more often. That is prefetch's price, paid in revisit to
+       buy sheet change. */
+    revisitMs: 165,
+    /* 181.4 MB measured on the stride walk (178.2 sequential, 180.4 with
+       prefetch off) — set from the worst of the three. Was 216, derived when the
+       pinned ceiling was 160 MB; it is now 170 MB plus room for the prefetched
+       neighbours. */
+    peakMemoryMb: 227,
+    // 31 ms measured, worst reading 32 across both walks.
+    worstFrameMs: 40,
+  },
+
+  /* The sequential walk — neighbouring sheets, which is how a set is read, and
+     the only walk that can judge prefetch.
+
+     Gated on the *share of fast sheet changes*, not on a median. Sheet change
+     here is bimodal by construction: a prefetch hit paints in ~26 ms and a miss
+     costs ~1310, so the median sits in a gap where no measurement lives and
+     moves by large steps as the hit rate shifts. Worse, a median gate cannot
+     catch the regression that matters — if prefetch stopped working entirely the
+     median would land at ~1310, still inside any budget loose enough to tolerate
+     a bad sample.
+
+     So the gate asserts the thing the feature claims: that a useful share of
+     sheet changes are served from memory. Measured 19/49 and 25/49 across two
+     runs — 39% and 51% — and set a quarter below the worse of those. */
+  sessionSequential: {
+    fastSheetChangeMs: 300,
+    minFastSheetChangePercent: 25,
   },
 
   /* Interaction on a loaded sheet. Median of 5 runs, and the tightest spreads
      of anything here. */
   interaction: {
     pan: {
-      // 27 ms measured (27–33)
-      frameWorstMs: 34,
+      /* 26 ms measured (26–27) in the latest run, but readings across runs span
+         26–35, which is wider than 25% of the median. Set from the worst of
+         those rather than from this run's tight spread: the old 34 sat *inside*
+         the observed band and passed twice by a single millisecond. */
+      frameWorstMs: 44,
       // 0 ms measured — see the absolute-floor note above.
       blockedMs: 50,
     },
     zoomSteady: {
-      // 75 ms measured (70–83)
+      // 72 ms measured (69–83)
       settleP95Ms: 94,
-      // 36 ms measured (34–36)
+      // 34 ms measured (33–38)
       frameWorstMs: 45,
       // 0 ms measured
       blockedMs: 50,
     },
     zoomDeepening: {
-      // 118 ms measured (117–121)
+      // 114 ms measured (101–116)
       settleP95Ms: 148,
-      // 54 ms measured (54–55)
+      // 51 ms measured (50–53)
       frameWorstMs: 68,
-      /* 358 ms measured (312–363). The largest number in this file, and the one
-         worth driving down rather than defending: it is tile work during a zoom
-         into levels that have not been fetched, not the gesture layer. */
-      blockedMs: 448,
+      /* 156 ms measured (103–205), set from the worst reading because the spread
+         is wider than the headroom. Still the largest number in this file, and
+         still tile work during a zoom into unfetched levels rather than anything
+         the gesture layer does.
+
+         Tightened hard from 448, which came from an earlier 358 ms (312–363)
+         reading. That gate would now pass a 2.9x regression, which is not a
+         gate. If this trips and the readings look like the old regime rather
+         than a real change, the 358 history is the thing to check first. */
+      blockedMs: 256,
     },
   },
 } as const;
