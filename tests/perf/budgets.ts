@@ -52,8 +52,11 @@ export const BUDGETS = {
      sequential walk is a different population rather than a better score on the
      same one. Its gate is below. */
   session: {
-    // 1309 ms measured (1301–1332)
-    sheetChangeMs: 1640,
+    /* 1809 ms measured (1806–1815 over four runs), under the shared-link
+       throttle. Re-derived from 1309 when the server stopped giving each
+       response its own link: a sheet's tiles download together and now split
+       the rate, which is what a real connection does. */
+    sheetChangeMs: 2270,
     /* 122 ms measured (88–132), set from the worst reading rather than the
        median.
 
