@@ -88,8 +88,9 @@ export async function readLongTasksSince(
 
    Playwright does not expose child CDP sessions, so the worker target cannot be
    reached from here. The fix is to throttle the link instead of the client:
-   `tools/serve.mjs --throttle` paces every response, so it applies to all three
-   origins and to every requester, worker or not. Run the servers with it. */
+   `tools/serve.mjs --throttle` paces every response over a link shared by
+   everything that server has in flight, so it applies to all three origins and
+   to every requester, worker or not. Run the servers with it. */
 export async function applyProfile(page: Page): Promise<CDPSession> {
   const client = await page.context().newCDPSession(page);
   await client.send("Emulation.setCPUThrottlingRate", {

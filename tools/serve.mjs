@@ -81,8 +81,33 @@ const FAST_3G = { bytesPerSecond: (1.6 * 1024 * 1024) / 8, latencyMs: 562.5 };
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
-/* Writes a body at a fixed rate after an initial round trip. Deliberately crude:
-   a fixed delay per chunk rather than a congestion model. What matters is that
+/* One link, shared by every response this server is writing. Each chunk books
+   the next free slot on it, so concurrent responses split the rate between them
+   rather than each getting all of it.
+
+   Pacing each response on its own was the earlier model, and it gave a page
+   that downloads in parallel a link per request: six 22 KB tiles at once took
+   0.74 s, the same as one, where a shared 1.6 Mbit/s link needs about 1.3 s.
+   The error grows with how much a page fetches at once, so it flattered exactly
+   the pages that fetch the most.
+
+   The link is per server, and each origin is its own server, so requests to
+   different origins still do not compete. Set content all comes from one
+   origin, which is where parallel fetching happens. */
+let linkFreeAt = 0;
+
+/* Milliseconds until `bytes` have crossed the link, queued behind whatever is
+   already booked on it. Round trips are not booked: latency delays a request
+   without using capacity. */
+function bookLink(bytes) {
+  const now = performance.now();
+  const start = Math.max(now, linkFreeAt);
+  linkFreeAt = start + (bytes * 1000) / FAST_3G.bytesPerSecond;
+  return linkFreeAt - now;
+}
+
+/* Writes a body over the shared link after an initial round trip. Deliberately
+   crude: fixed-size chunks rather than a congestion model. What matters is that
    it is uniform, visible in this file, and cannot be bypassed by a worker. */
 async function writePaced(res, stream) {
   await sleep(FAST_3G.latencyMs);
@@ -113,14 +138,21 @@ async function writePaced(res, stream) {
     if (res.destroyed) return;
     buffer = Buffer.concat([buffer, piece]);
     while (buffer.length >= chunkBytes) {
+      /* Wait for the chunk's slot, then send it: a chunk arrives once it has
+         crossed the link, not when it is queued. */
+      await sleep(bookLink(chunkBytes));
+      if (res.destroyed) return;
       if (!res.write(buffer.subarray(0, chunkBytes))) await drain();
       if (res.destroyed) return;
       buffer = buffer.subarray(chunkBytes);
-      await sleep(chunkMs);
     }
   }
   if (res.destroyed) return;
-  if (buffer.length) res.write(buffer);
+  if (buffer.length) {
+    await sleep(bookLink(buffer.length));
+    if (res.destroyed) return;
+    res.write(buffer);
+  }
   res.end();
 }
 

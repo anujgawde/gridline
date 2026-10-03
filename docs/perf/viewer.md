@@ -48,7 +48,15 @@ guessed at, so no single assumption carries the result.
 ### How the throttle is applied
 
 By the server, not the browser. `tools/serve.mjs --throttle` waits one round trip
-then writes each response at a fixed byte rate.
+per request, then writes every response over one link shared by all responses in
+flight, so parallel requests split the rate rather than each getting all of it.
+
+**The figures in this file predate the shared link.** They were taken when each
+response was paced on its own, which gave parallel requests a link apiece: six
+tiles fetched at once arrived in 0.74 s, where a shared link takes 1.32 s. Any
+reading that fetches in parallel — which is every tiled one — is optimistic by
+some amount, and until each is re-taken it should be read that way. A single
+sequential download is unaffected.
 
 This is deliberate. CDP applies network conditions per target, and a service
 worker is its own target — so a throttle set on the page does not reach anything
