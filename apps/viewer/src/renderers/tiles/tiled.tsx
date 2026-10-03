@@ -14,6 +14,7 @@ import type { TileIndex, TileStats, TileStatsSource } from "./types";
 import {
   fitScale,
   levelFor,
+  pageRect,
   tileRect,
   tilesThroughLevel,
   visibleTiles,
@@ -188,6 +189,12 @@ export function TiledRenderer({
        not the drawing's. */
     context.clearRect(0, 0, canvas.width, canvas.height);
 
+    const page = pageRect(index, view);
+    context.save();
+    context.beginPath();
+    context.rect(page.x, page.y, page.width, page.height);
+    context.clip();
+
     /* Draw coarse to sharp, every level that has something cached, each one
        painting over the last.
 
@@ -244,6 +251,8 @@ export function TiledRenderer({
         deep.height * view.scale,
       );
     }
+
+    context.restore();
 
     if (needsDeepZoom(index, view.scale) && !deepRef.current?.busy) {
       const region = {

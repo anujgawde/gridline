@@ -110,6 +110,18 @@ export function tileRect(
   };
 }
 
+/* Where the page itself lands on screen. Tiles are square, so the bottom row
+   carries filler past the page's edge; drawing is clipped to this rect so the
+   filler never shows. */
+export function pageRect(index: TileIndex, view: ViewState) {
+  return {
+    x: view.x,
+    y: view.y,
+    width: index.pageWidth * view.scale,
+    height: index.pageHeight * view.scale,
+  };
+}
+
 /* The scale at which the whole sheet fits the viewport, with a margin. */
 export function fitScale(
   index: TileIndex,

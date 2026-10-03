@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { TileIndex } from "../types";
-import { fitScale, levelFor, tileRect, visibleTiles } from "../viewport";
+import {
+  fitScale,
+  levelFor,
+  pageRect,
+  tileRect,
+  visibleTiles,
+} from "../viewport";
 
 const TILE = 512;
 
@@ -172,5 +178,21 @@ describe("tileRect", () => {
       expect(rect.x + rect.width).toBeGreaterThan(0);
       expect(rect.y + rect.height).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("pageRect", () => {
+  it("ends where the page ends, short of the bottom tile's filler", () => {
+    /* Level 0 is one 512 x 512 tile holding a 512 x 366 page, so a third of
+       the tile is filler below the drawing. */
+    const level = index.levels[0]!;
+    const view = { x: 10, y: 20, scale: fitScale(index, 1600, 1000) };
+    const page = pageRect(index, view);
+    const tile = tileRect(index, level, { level: 0, col: 0, row: 0 }, view, TILE);
+
+    expect(page.x).toBe(tile.x);
+    expect(page.y).toBe(tile.y);
+    expect(page.width / page.height).toBeCloseTo(3024 / 2160, 5);
+    expect(page.y + page.height).toBeLessThan(tile.y + tile.height - 1);
   });
 });
