@@ -2,26 +2,26 @@
 
 A drawing-set workspace for construction teams in the field.
 
-A construction project ships with 1,500–2,000 large-format drawing sheets. On site, a superintendent needs to open the current revision of a specific sheet, see what changed since they last looked, and mark it up — usually on a tablet, usually on bad connectivity. Gridline is a frontend architecture thesis built around that problem.
+A construction project issues 1,500–2,000 large-format drawing sheets. On site, a superintendent needs to open the current revision of a sheet, see what changed since they last looked, and mark it up. They usually work on a tablet, often with a poor connection.
+
+Gridline is a frontend built for that job. It renders very large drawing sets in the browser, and it is split into microfrontends that deploy independently.
 
 ## Architecture
 
-Four microfrontends composed at runtime via Rspack Module Federation 2.0:
+Four microfrontends, composed at runtime with Rspack Module Federation 2.0:
 
-- **Shell** — routing, layout, federation manifest resolution, offline banner
-- **Viewer** — tile-based canvas rendering of a single sheet with pan/zoom and markup overlay
-- **Navigator** — virtualized thumbnail grid over the full drawing set with discipline filters
-- **Compare** — revision diff with dual tile pyramids, onion-skin blend, and sync-zoom
+- **Shell** — routing, layout, loading the other apps, offline banner
+- **Viewer** — renders one sheet from tiles, with pan, zoom and a markup overlay
+- **Navigator** — a scrollable thumbnail grid of the whole set, with discipline filters
+- **Compare** — the difference between two revisions, with an onion-skin blend and synced zoom
 
-Remotes communicate exclusively through a zod-validated event bus in the shared platform package. No direct imports between remotes, no shared mutable globals.
+The apps never import each other. They communicate only through an event bus in the shared platform package, and every message is validated with zod. There is no shared mutable state.
 
-## Independent deployment, demonstrated
+## Independent deployment
 
-"Independently deployable" is the claim this architecture rests on, so it is measured rather than asserted. The shell holds no remote addresses: it reads them from a static `remotes.json` on its own origin at startup and registers remotes at runtime, after it has rendered.
+The shell contains no remote addresses. At startup it reads them from `remotes.json`, a static file on its own origin, and registers the remotes after its first render. Two properties follow, and both can be checked by hand.
 
-Two consequences follow, and both are checkable by hand.
-
-**A remote can be rebuilt without the host being rebuilt.**
+### Rebuilding a remote leaves the shell unchanged
 
 ```bash
 pnpm build
@@ -33,7 +33,7 @@ turbo run build --filter=@gridline/viewer
 find apps/shell/dist -type f | sort | xargs shasum -a 256 | shasum -a 256
 ```
 
-Measured on this machine, 2026-09-29, over three consecutive viewer builds:
+Results from 2026-09-29, over three consecutive viewer builds:
 
 ```
 shell/dist   before  fdf22dc7ba3d372fcafd30839ab93a7b15feaebb991dc407d2e26160b5c2751c
@@ -43,19 +43,19 @@ viewer/dist  before  f7b4dfecebf3de711e9298f126a9b94b53181e96db41bde692ce4a093ee
 viewer/dist  after   8ef18bb5f50962477ba055e440dcf72f208b5d4cac35ee12bf7126ff3be2c833
 ```
 
-Reloading the shell served those identical bytes and rendered the new viewer, with shared-bus state still arriving from it.
+The shell's files are identical before and after. Reloading the shell loaded the new viewer, and events from the viewer still arrived on the bus.
 
-**A remote can be replaced with no build at all.**
+### Moving a remote needs no build
 
-With a second viewer build served on another port, editing the deployed `remotes.json` and reloading is sufficient — no bundler runs. The shell's JavaScript is byte-identical across the swap:
+Serve a second viewer build on another port, edit the deployed `remotes.json`, and reload. No bundler runs, and the shell's JavaScript stays byte-identical:
 
 ```
 shell/dist, excluding remotes.json   41ee0066d3ee51d61122a2150ac3913d4f6ef0b57e73c11967e6721086b03b41
 ```
 
-Only the data file differs, which is the point: addresses are deployment data, not compiled code. A remote's location can change without the host being rebuilt or redeployed.
+Only `remotes.json` changes. Remote addresses are deployment data, not compiled code, so a remote can move without the shell being rebuilt or redeployed.
 
-Both properties are verified against `pnpm serve`, a dependency-free static file server over each app's `dist/`, rather than a dev server. A dev server applies headers and conveniences that a static host does not, so results from one do not transfer to the other.
+Both checks run against `pnpm serve`, a dependency-free static file server over each app's `dist/`. They are not run against a dev server, because a dev server adds headers and behaviour that a static host does not.
 
 ## Stack
 
@@ -72,9 +72,9 @@ Both properties are verified against `pnpm serve`, a dependency-free static file
 | Input | Hand-rolled gesture layer over Pointer Events |
 | Testing | Vitest (unit) + Playwright (e2e + perf traces) |
 
-## No backend — by design
+## No backend
 
-There is no API server, no database, no BFF. All network interactions are mocked in-browser with MSW. This isn't a shortcut — it lets us script the exact conditions the performance claims depend on: 3G latency, tile failure rates, mid-session disconnects. The measurements are more reproducible than they would be against a real server.
+Gridline has no API server, database or BFF. All network traffic is handled in the browser by Mock Service Worker (MSW). Network conditions can therefore be scripted — 3G latency, tile failures, a disconnect mid-session — and measurements reproduce more reliably than they would against a real server.
 
 ## Project structure
 
@@ -95,9 +95,9 @@ gridline/
 
 Entries marked planned do not exist yet.
 
-## The test data is generated, and regenerates identically
+## Test data
 
-Rendering claims are only comparable if every run measures the same document, so the drawing set is generated rather than sampled, and generated deterministically.
+The drawing set is generated from a fixed seed, so every run measures the same document.
 
 ```bash
 pnpm setgen
@@ -105,17 +105,22 @@ pnpm setgen
 # set checksum b95b5f468d12b08a5bbb9d78ac394c8ad54ee6cdd36fc8bff0a66fcfe76739be
 ```
 
-`tools/setgen` produces 1,500 ARCH E1 sheets (30 × 42 in) as vector PDFs — column grids, subdivided floor plates, hatching, room tags, dimension strings and a ruled title block, at a density that is non-trivial to rasterize. Sheet numbering follows discipline convention: `A-101`, `AD-201`, `S-304`, `M-412`, `E-508`.
+`tools/setgen` writes 1,500 ARCH E1 sheets (30 × 42 in) as vector PDFs. Each sheet has column grids, subdivided floor plates, hatching, room tags, dimension strings and a ruled title block, which makes rasterizing it non-trivial. Sheet numbers use standard discipline prefixes: `A-101`, `AD-201`, `S-304`, `M-412`, `E-508`.
 
-Each sheet is drawn from a generator seeded by its own sheet number, not from one stream shared across the run. Regenerating a single sheet therefore reproduces exactly the bytes the full run wrote, so generation can be partial without changing the set. Every timestamp the PDF writer would otherwise take from the clock is pinned, since one unpinned date makes a checksum record when a run happened rather than what it produced.
+- Each sheet is seeded by its own sheet number. Regenerating one sheet produces the same bytes as the full run.
+- Every timestamp in the PDF output is fixed, so a checksum depends only on content.
+- The output is not committed. To compare two sets, compare the set checksum: one hash over all 1,500 per-sheet hashes, in sheet-number order.
 
-The output is not committed — the seed is the reproducibility mechanism, so the set is regenerated rather than carried in git. The set checksum above is one hash over all 1,500 per-sheet checksums, taken in sheet-number order: comparing that single line is comparing the whole set.
+## Performance
 
-## Rendering, measured
+All figures come from committed Playwright specs, run on one machine. Full results, including what they do not show, are in [`docs/perf/viewer.md`](docs/perf/viewer.md).
 
-Every figure here comes from a committed Playwright spec, taken on one machine. The full reading, including what these numbers do not prove, is in [`docs/perf/viewer.md`](docs/perf/viewer.md).
+Test conditions:
 
-**The document is one PDF of 1,500 pages, 41.7 MB.** That is what a drawing set is: jurisdictions accept submittals up to 500 MB and only permit splitting by discipline above 100 MB, so what reaches someone on site is a single file. **The profile is a 4x CPU throttle and a link paced at 1.6 Mbit/s with a 562 ms round trip**, applied by the static server rather than by the browser, because CDP applies network conditions per target and a service worker is its own target. Both renderers ship permanently, selected by `?renderer=`, so the comparison is a URL rather than a commit someone has to check out.
+- **Document:** one PDF of 1,500 pages, 41.7 MB. Sets reach the field as a single file: jurisdictions accept submittals up to 500 MB and only allow splitting by discipline above 100 MB.
+- **CPU:** 4x throttle.
+- **Network:** 1.6 Mbit/s with a 562 ms round trip. The static server applies this, not the browser, because CDP sets network conditions per target and a service worker is a separate target.
+- **Renderers:** both ship. Choose one with `?renderer=fullpage` or `?renderer=tiled`.
 
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
@@ -127,29 +132,60 @@ Every figure here comes from a committed Playwright spec, taken on one machine. 
 | Sheet change, reading in order | **210 ms** | **25 ms** on half of them |
 | Return to a visited sheet | not measured | **112 ms** |
 
-`fullpage` parses the whole document on the main thread before drawing anything, so its time to first sheet scales with the size of the document, and it retains every page it renders, climbing 43.6 MB a sheet to 2.18 GB over fifty. Of its 225.5 seconds, 217.7 is the document arriving; rasterizing the page someone actually asked for takes 278 ms.
+### `fullpage`
 
-`tiled` fetches only the tiles covering the viewport from a pyramid built offline by `tools/tiler`, so its time scales with the size of the screen instead. Tiles are held as decoded bitmaps in a byte-budgeted cache that evicts least-recently-used entries and closes the bitmaps it drops, since canvas pixels live outside the JS heap and are invisible to both `JSHeapUsedSize` and `performance.memory`.
+Parses the whole PDF on the main thread before drawing anything, so time to first sheet grows with document size. Of its 225.5 s, 217.7 s is downloading the document; rendering the requested page takes 278 ms. It keeps every page it renders, so memory grows 43.6 MB per sheet and reaches 2.18 GB after fifty.
 
-The cache has two tiers. Deep tiles are evicted least-recently-used against a 256 MB budget; the coarse levels that let a revisited sheet repaint immediately are held back from that, within a 170 MB ceiling of their own, and are evicted a whole sheet at a time — four of a sheet's five coarse tiles paints a sheet with a hole in it, which is worse than one that paints late. That ceiling is expressed in bytes rather than sheets because a sheet's coarse cost is its geometry: five tiles for any standard landscape size, eight for portrait.
+### `tiled`
 
-**The two sheet-change figures are the same code measured against two users.** The 1306 ms row is a session that visits every thirtieth sheet — a deliberate stress case that defeats locality so nothing can score well by luck. The 25 ms row is the same 50 sheets taken in order, where the viewer fetches the neighbouring sheets' coarse tiles on a queue that only runs while nothing else wants the link. Half of those sheet changes are then served from memory and the other half are unchanged, so the honest statement is the split rather than a median sitting between them. Disable it with `?prefetch=0` and the fast half disappears: 0 of 49 instead of 25.
+Fetches only the tiles that cover the viewport, from a pyramid built ahead of time by `tools/tiler`. Time to first sheet grows with screen size, not document size.
 
-**The slower sheet change is still the real cost when someone jumps.** `fullpage` is quick between sheets because it already paid for all of them at once, and prefetching neighbours does nothing for a reader who does not read neighbours.
+Decoded tiles are held in a memory cache with two tiers:
 
-**Tiled memory is flat, measured over 140 sheets.** It climbs 5 MB a sheet, then holds at exactly the pinned ceiling for the rest of the session — every sheet painted, peak 181 MB over fifty. Memory is bounded by the budget rather than by how many sheets someone opens, which is the claim a drawing set of 1,500 sheets actually requires.
+- **Detail tiles** — up to 256 MB, least-recently-used evicted first. Evicted bitmaps are closed explicitly, because canvas pixels live outside the JS heap and do not appear in `JSHeapUsedSize` or `performance.memory`.
+- **Coarse tiles** — the low-resolution levels that let a revisited sheet repaint immediately. They have their own 170 MB ceiling and are evicted one whole sheet at a time, because a sheet missing one coarse tile paints with a hole in it. The ceiling is set in bytes, not sheets, because cost depends on sheet shape: five tiles for a standard landscape sheet, eight for portrait.
 
-The revisit figure is a median across two populations: a sheet still holding its coarse tiles repaints from memory, while one evicted past the ceiling refetches them from the browser's cache and decodes. Both are what `immutable` buys — a fresh sheet change over the same link is 1306 ms. Revisit rose from 98 ms to 112 ms when prefetch landed, because speculative sheets share the pinned tier with visited ones and so evict them sooner. That is the price of the sheet-change figure above, and it is recorded rather than netted out.
+Memory stays flat. Over 140 sheets it rises about 5 MB per sheet, then holds at the coarse-tile ceiling for the rest of the session, with every sheet painted. Peak over fifty sheets is 181 MB. Memory depends on the budget, not on how many sheets are opened.
+
+### Sheet change: jumping vs. reading in order
+
+The two sheet-change rows measure the same code under two reading patterns.
+
+- **Jumping (1306 ms)** visits every thirtieth sheet. Nothing nearby is ever reused, so no result depends on luck.
+- **Reading in order (25 ms on half)** visits the same 50 sheets in sequence. While the network is idle, the viewer fetches the coarse tiles of neighbouring sheets. Half of the sheet changes are then served from memory; the other half are no faster. The results fall into two groups, so the table reports the split instead of a median. With `?prefetch=0`, 0 of 49 changes are fast instead of 25.
+
+`fullpage` is faster between sheets because it paid for all of them up front. Prefetching does not help a reader who jumps around the set, so 1306 ms remains the real cost of a jump.
+
+### Revisits
+
+The 112 ms revisit figure is a median over two groups. Sheets that still hold their coarse tiles repaint from memory. Sheets evicted past the ceiling refetch their tiles from the browser cache and decode them. Both are fast because tiles are served `immutable`; opening a new sheet over the same link takes 1306 ms.
+
+Revisit time rose from 98 ms to 112 ms when prefetch was added. Prefetched sheets share the coarse tier with visited ones, so visited sheets are evicted sooner.
 
 ## Status
 
-Pre-alpha. The platform package ships design tokens and the event bus. The shell renders its chrome from those tokens and composes the viewer remote at runtime over Module Federation, with active-sheet state crossing the bus between them. Both apps run from their production builds on separate origins. The synthetic drawing set generates.
+Pre-alpha.
 
-Sheet rendering is built and measured: `tools/tiler` builds the tile pyramid offline, and the viewer selects a level from the viewport, bounds what it holds in memory against two budgets, and fetches the neighbouring sheets ahead while the link is idle. The platform ships ten UI primitives, and the viewer has its canvas overlay toolbar, properties panel, and a cache readout behind `?perf=1`. A hand-rolled gesture layer handles pinch, pan, momentum and wheel zoom, and costs 0 ms of main-thread time.
+**Built**
 
-A tile store in IndexedDB was planned and then dropped: tiles are served `immutable`, so the browser already keeps them on disk, and a reloaded sheet opens in 93–100 ms against 1352–1357 ms with that cache disabled. A store would have been a second disk cache beside one that already works. It returns later as an offline feature rather than a performance one.
+- Platform package: design tokens, the event bus, and ten UI primitives.
+- Shell: renders its chrome from the tokens and loads the viewer at runtime. Active-sheet state crosses the bus between them.
+- Both apps run from their production builds on separate origins.
+- The synthetic drawing set generator.
+- `tools/tiler`, which builds the tile pyramid offline.
+- Viewer: picks a tile level from the viewport, keeps memory within two budgets, and prefetches neighbouring sheets while the network is idle. Includes a canvas toolbar, a properties panel, and a cache readout behind `?perf=1`.
+- A hand-rolled gesture layer for pinch, pan, momentum and wheel zoom, costing 0 ms of main-thread time.
 
-Not built: deep zoom past the pre-rendered levels, which is parked on a same-origin worker constraint; the navigator and compare remotes; markup; and per-app deployment pipelines.
+**Dropped**
+
+- An IndexedDB tile store. Tiles are served `immutable`, so the browser already keeps them on disk: a reloaded sheet opens in 93–100 ms, against 1352–1357 ms with that cache disabled. A second disk cache would add nothing. IndexedDB returns later for offline support.
+
+**Not built yet**
+
+- Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
+- The navigator and compare remotes
+- Markup
+- Per-app deployment pipelines
 
 ## License
 
