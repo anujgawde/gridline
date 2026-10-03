@@ -64,6 +64,16 @@ production drawing data comes from a CDN rather than from an app's own origin.
 server itself, for the same reason `serve` never triggers a build: a spec that
 built its own target could measure bytes nobody has looked at.
 
+The session spec takes two shapes, and they answer different questions rather
+than one being a weaker version of the other. `PERF_WALK=stride` (the default)
+visits every thirtieth sheet, defeating locality so nothing scores well by
+accident. `PERF_WALK=sequential` reads neighbouring sheets in order, which is how
+a drawing set is actually read and the only walk that can judge anything built to
+exploit locality. **A feature aimed at one cannot be graded by the other** — the
+gates in `budgets.ts` were all taken from the stride walk, and the spec asserts
+them on that walk alone. `PERF_PREFETCH=0` turns off reading ahead, so the
+before/after is two runs rather than a checkout.
+
 `pnpm serve` runs `tools/serve.mjs` against each app's `dist/` on those same
 ports, so the remote lookup needs no second copy — the cost is that `dev` and
 `serve` cannot run at once. It requires a build first and deliberately never
@@ -223,6 +233,23 @@ set from a known-good reading. They are asserted by the perf specs and run by
 hand today; there is no pipeline running them yet. Only the optimised renderer
 is graded: the naive one ships permanently for comparison and fails every gate
 by construction.
+
+Three further rules, each learned from a gate that was wrong:
+
+- **A gate set from a median is wrong when the spread is wider than the
+  headroom.** Set it from the worst reading instead, or it fails on a good day.
+- **A gate on a bimodal measurement is a gate on a gap where nothing happens.**
+  Anything served from a cache is bimodal — hit or miss, with nothing in between
+  — so grade the *share* that hits rather than the average of both. A median
+  gate also cannot catch the regression that matters, because losing the cache
+  entirely moves the median to the slow population, which any tolerant budget
+  already allows.
+- **A gate nobody has seen fail is a decoration.** Before trusting a new one,
+  break the thing it guards and watch it trip.
+
+Readings are written to `perf-results/`, never `test-results/`: Playwright
+empties its own output directory at the start of every run, so results written
+there are destroyed by the next spec.
 
 ## Reference material
 
