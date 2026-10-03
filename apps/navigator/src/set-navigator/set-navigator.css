@@ -1,0 +1,21 @@
+.set-navigator {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+  padding: var(--space-3);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+
+.set-navigator-heading {
+  margin: 0;
+  font: var(--type-title);
+}
+
+.set-navigator-open {
+  margin: 0;
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-secondary);
+}

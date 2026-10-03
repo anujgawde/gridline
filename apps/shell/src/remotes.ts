@@ -30,6 +30,14 @@ export function loadSheetSurface() {
   return loadRemote("viewer/SheetSurface") as Promise<ViewerSheetSurface>;
 }
 
+export interface NavigatorSetNavigator {
+  SetNavigator: ComponentType;
+}
+
+export function loadSetNavigator() {
+  return loadRemote("navigator/SetNavigator") as Promise<NavigatorSetNavigator>;
+}
+
 /* Fetches the lookup and registers whatever it names.
 
    Never throws. A lookup that is missing, unreachable or malformed leaves the

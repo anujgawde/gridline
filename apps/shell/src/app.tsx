@@ -4,7 +4,7 @@ import { bus } from "@gridline/platform/bus";
 
 import { RemoteBoundary } from "./remote-boundary";
 import { SheetNav } from "./sheet-nav";
-import { loadSheetSurface } from "./remotes";
+import { loadSetNavigator, loadSheetSurface } from "./remotes";
 
 /* loadRemote rather than import(): with no remote declared in the build config,
    the bundler no longer knows this specifier names a remote, so import syntax
@@ -22,6 +22,19 @@ const SheetSurface = lazy(() =>
       return {
         default: () => (
           <p className="shell-canvas-message">Viewer unavailable</p>
+        ),
+      };
+    }),
+);
+
+const SetNavigator = lazy(() =>
+  loadSetNavigator()
+    .then((m) => ({ default: m.SetNavigator }))
+    .catch((error: unknown) => {
+      console.error('[shell] remote "navigator" failed to load', error);
+      return {
+        default: () => (
+          <p className="shell-panel-message">Sheets unavailable</p>
         ),
       };
     }),
@@ -80,20 +93,35 @@ export function App() {
         )}
       </div>
 
-      <main className="shell-canvas">
-        <RemoteBoundary
-          name="viewer"
-          fallback={
-            <p className="shell-canvas-message">Viewer unavailable</p>
-          }
-        >
-          <Suspense
-            fallback={<p className="shell-canvas-message">Loading viewer…</p>}
+      <div className="shell-body">
+        <aside className="shell-panel">
+          <RemoteBoundary
+            name="navigator"
+            fallback={<p className="shell-panel-message">Sheets unavailable</p>}
           >
-            <SheetSurface sheetId={sheetId} revision={4} />
-          </Suspense>
-        </RemoteBoundary>
-      </main>
+            <Suspense
+              fallback={<p className="shell-panel-message">Loading sheets…</p>}
+            >
+              <SetNavigator />
+            </Suspense>
+          </RemoteBoundary>
+        </aside>
+
+        <main className="shell-canvas">
+          <RemoteBoundary
+            name="viewer"
+            fallback={
+              <p className="shell-canvas-message">Viewer unavailable</p>
+            }
+          >
+            <Suspense
+              fallback={<p className="shell-canvas-message">Loading viewer…</p>}
+            >
+              <SheetSurface sheetId={sheetId} revision={4} />
+            </Suspense>
+          </RemoteBoundary>
+        </main>
+      </div>
     </div>
   );
 }
