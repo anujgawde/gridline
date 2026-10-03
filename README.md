@@ -67,7 +67,7 @@ Both properties are verified against `pnpm serve`, a dependency-free static file
 | PDF parse | pdf.js in a dedicated worker |
 | State | Zustand (per-MFE) + shared platform store |
 | Styling | Tailwind + CSS custom properties from platform |
-| Persistence | IndexedDB for tiles, markups, sheet index |
+| Persistence | The browser's own HTTP cache for tiles; IndexedDB planned for markups |
 | Network | Mock Service Worker (MSW) — no backend |
 | Input | Hand-rolled gesture layer over Pointer Events |
 | Testing | Vitest (unit) + Playwright (e2e + perf traces) |
@@ -119,30 +119,37 @@ Every figure here comes from a committed Playwright spec, taken on one machine. 
 
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
-| First sheet on screen, cold | 225.5 s | **8.45 s** |
-| Main-thread block during load | 1120 ms | **66 ms** |
-| Longest single task | 875 ms | **66 ms** |
-| Peak memory over a 50-sheet session | 2230 MB | **171 MB** |
-| Sheet change | **210 ms** | 1306 ms |
-| Return to a visited sheet | not measured | **98 ms** |
+| First sheet on screen, cold | 225.5 s | **8.44 s** |
+| Main-thread block during load | 1120 ms | **60 ms** |
+| Longest single task | 875 ms | **60 ms** |
+| Peak memory over a 50-sheet session | 2230 MB | **181 MB** |
+| Sheet change, jumping across the set | **210 ms** | 1306 ms |
+| Sheet change, reading in order | **210 ms** | **25 ms** on half of them |
+| Return to a visited sheet | not measured | **112 ms** |
 
 `fullpage` parses the whole document on the main thread before drawing anything, so its time to first sheet scales with the size of the document, and it retains every page it renders, climbing 43.6 MB a sheet to 2.18 GB over fifty. Of its 225.5 seconds, 217.7 is the document arriving; rasterizing the page someone actually asked for takes 278 ms.
 
 `tiled` fetches only the tiles covering the viewport from a pyramid built offline by `tools/tiler`, so its time scales with the size of the screen instead. Tiles are held as decoded bitmaps in a byte-budgeted cache that evicts least-recently-used entries and closes the bitmaps it drops, since canvas pixels live outside the JS heap and are invisible to both `JSHeapUsedSize` and `performance.memory`.
 
-The cache has two tiers. Deep tiles are evicted least-recently-used against a 256 MB budget; the coarse levels that let a revisited sheet repaint immediately are held back from that, within a 160 MB ceiling of their own, and are evicted a whole sheet at a time — four of a sheet's five coarse tiles paints a sheet with a hole in it, which is worse than one that paints late. That ceiling is expressed in bytes rather than sheets because a sheet's coarse cost is its geometry: five tiles for any standard landscape size, eight for portrait.
+The cache has two tiers. Deep tiles are evicted least-recently-used against a 256 MB budget; the coarse levels that let a revisited sheet repaint immediately are held back from that, within a 170 MB ceiling of their own, and are evicted a whole sheet at a time — four of a sheet's five coarse tiles paints a sheet with a hole in it, which is worse than one that paints late. That ceiling is expressed in bytes rather than sheets because a sheet's coarse cost is its geometry: five tiles for any standard landscape size, eight for portrait.
 
-**The slower sheet change is the real cost, not a rounding error.** `fullpage` is quick between sheets because it already paid for all of them at once. A session longer than about 170 sheets would spend more time waiting under `tiled`.
+**The two sheet-change figures are the same code measured against two users.** The 1306 ms row is a session that visits every thirtieth sheet — a deliberate stress case that defeats locality so nothing can score well by luck. The 25 ms row is the same 50 sheets taken in order, where the viewer fetches the neighbouring sheets' coarse tiles on a queue that only runs while nothing else wants the link. Half of those sheet changes are then served from memory and the other half are unchanged, so the honest statement is the split rather than a median sitting between them. Disable it with `?prefetch=0` and the fast half disappears: 0 of 49 instead of 25.
 
-**Tiled memory is flat, measured over 140 sheets.** It climbs 5 MB a sheet to sheet 32, then holds at exactly 160 MB for the remaining 107 — peak 173 MB at sheet 140 against 171 MB at sheet 50, every sheet painted. Memory is bounded by the budget rather than by how many sheets someone opens, which is the claim a drawing set of 1,500 sheets actually requires.
+**The slower sheet change is still the real cost when someone jumps.** `fullpage` is quick between sheets because it already paid for all of them at once, and prefetching neighbours does nothing for a reader who does not read neighbours.
 
-The revisit figure is a median across two populations: a sheet still holding its coarse tiles repaints from memory in about 72 ms, while one past the ceiling refetches them from the browser's cache and decodes, at about 104 ms. Both are what `immutable` buys — a fresh sheet change over the same link is 1306 ms.
+**Tiled memory is flat, measured over 140 sheets.** It climbs 5 MB a sheet, then holds at exactly the pinned ceiling for the rest of the session — every sheet painted, peak 181 MB over fifty. Memory is bounded by the budget rather than by how many sheets someone opens, which is the claim a drawing set of 1,500 sheets actually requires.
+
+The revisit figure is a median across two populations: a sheet still holding its coarse tiles repaints from memory, while one evicted past the ceiling refetches them from the browser's cache and decodes. Both are what `immutable` buys — a fresh sheet change over the same link is 1306 ms. Revisit rose from 98 ms to 112 ms when prefetch landed, because speculative sheets share the pinned tier with visited ones and so evict them sooner. That is the price of the sheet-change figure above, and it is recorded rather than netted out.
 
 ## Status
 
 Pre-alpha. The platform package ships design tokens and the event bus. The shell renders its chrome from those tokens and composes the viewer remote at runtime over Module Federation, with active-sheet state crossing the bus between them. Both apps run from their production builds on separate origins. The synthetic drawing set generates.
 
-Sheet rendering is built and measured: `tools/tiler` builds the tile pyramid offline, and the viewer selects a level from the viewport and bounds what it holds in memory. Deep zoom past the pre-rendered levels and the gesture layer are not done. The navigator and compare remotes, UI primitives, and per-app deployment pipelines are not built yet.
+Sheet rendering is built and measured: `tools/tiler` builds the tile pyramid offline, and the viewer selects a level from the viewport, bounds what it holds in memory against two budgets, and fetches the neighbouring sheets ahead while the link is idle. The platform ships ten UI primitives, and the viewer has its canvas overlay toolbar, properties panel, and a cache readout behind `?perf=1`. A hand-rolled gesture layer handles pinch, pan, momentum and wheel zoom, and costs 0 ms of main-thread time.
+
+A tile store in IndexedDB was planned and then dropped: tiles are served `immutable`, so the browser already keeps them on disk, and a reloaded sheet opens in 93–100 ms against 1352–1357 ms with that cache disabled. A store would have been a second disk cache beside one that already works. It returns later as an offline feature rather than a performance one.
+
+Not built: deep zoom past the pre-rendered levels, which is parked on a same-origin worker constraint; the navigator and compare remotes; markup; and per-app deployment pipelines.
 
 ## License
 

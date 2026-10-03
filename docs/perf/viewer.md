@@ -74,8 +74,19 @@ pnpm serve           # shell 4100, viewer 4101, sheet set 4200 — all paced
 pnpm perf            # in a second terminal
 ```
 
-Two specs run. `baseline.spec.ts` is a cold load of one sheet.
+Four specs run. `baseline.spec.ts` is a cold load of one sheet.
 `session.spec.ts` is the one that matters: a person moving through the set.
+`interaction.spec.ts` covers pan and zoom on a sheet already open.
+`storage-probe.spec.ts` grades nothing — it times where a tile comes from after
+a reload, and exists because a scope decision rested on the answer.
+
+The session takes two shapes, and they answer different questions:
+
+```bash
+pnpm perf                                   # stride — every 30th sheet
+PERF_WALK=sequential pnpm perf              # neighbouring sheets, in order
+PERF_WALK=sequential PERF_PREFETCH=0 pnpm perf   # the same, without prefetch
+```
 
 Each figure is a **median of 5 cold runs**, each in a fresh browser context so
 the HTTP cache is genuinely empty. The spread is reported beside it, because a
@@ -90,7 +101,10 @@ build, so a number taken from it is a number about the bundler.
 A cold start now includes a 42 MB transfer at 205 KB/s, so a full run takes
 around twenty minutes. That is the measurement, not a problem with it.
 
-Each run writes `test-results/viewer-baseline-<renderer>.json`.
+Each run writes its readings to `perf-results/`, which is separate from
+Playwright's own `test-results/` for a reason worth knowing: Playwright empties
+its output directory at the start of every run, so a second spec used to delete
+the first one's numbers before anyone had transcribed them.
 
 ## The document
 
@@ -122,14 +136,14 @@ failure, and the sheet number it happens at, is the result.
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
 | Document open (1,500 pages) | 217 s | — never opened |
-| First sheet on screen | 225 s | **8.45 s** |
-| Sheet change, first ten (median) | 210 ms (174–224930) | 1320 ms (1307–7960) |
-| Sheet change, last ten (median) | 224 ms (181–251) | 1306 ms (1298–1327) |
-| **Returning to a visited sheet** | not measured | **98 ms** (72–104) |
-| Worst frame, first ten | 25 ms (23–35) † | 29 ms (27–30) |
-| Worst frame, last ten | 24 ms (22–27) † | 28 ms (27–29) |
-| Memory at sheet 1 | 59.9 MB | 13.5 MB |
-| **Memory peak** | **2230 MB** (2180 MB canvas) | **171 MB** (160 MB tiles) |
+| First sheet on screen | 225 s | **8.44 s** |
+| Sheet change, first ten (median) | 210 ms (174–224930) | 1309 ms (1305–7917) |
+| Sheet change, last ten (median) | 224 ms (181–251) | 1306 ms (1300–1311) |
+| **Returning to a visited sheet** | not measured | **112 ms** (83–116) |
+| Worst frame, first ten | 25 ms (23–35) † | 27 ms (27–29) |
+| Worst frame, last ten | 24 ms (22–27) † | 29 ms (27–35) |
+| Memory at sheet 1 | 59.9 MB | 13.6 MB |
+| **Memory peak** | **2230 MB** (2180 MB canvas) | **181 MB** (170 MB tiles) |
 | Memory passes 400 MB at | **sheet 9** | never |
 | Sheets painted of 50 | 50 / 50 | 50 / 50 |
 
@@ -138,6 +152,62 @@ and have not been re-run. Every other `fullpage` figure here is driven by the
 42 MB transfer, main-thread parsing, or retained pages — none of which the input
 layer or the panel touches — so those stand. The `tiled` column was re-taken in
 full afterwards.
+
+**The `tiled` memory peak rose from 171 MB to 181 MB**, deliberately: the pinned
+coarse-tile ceiling went from 160 MB to 170 MB to make room for prefetched
+neighbours without shrinking the window of sheets a revisit can land in. Revisit
+rose with it, 98 → 112 ms, for the same reason — prefetched sheets share the
+pinned tier with visited ones, so a visited sheet is evicted sooner. That is the
+price paid for the sheet-change figure in the next section.
+
+### This walk jumps; the next one does not
+
+The 50 sheets above are spread across the whole set, every thirtieth one. That is
+deliberate — it defeats any accidental locality, so nothing scores well by luck.
+
+It is a stress case rather than a portrait of a reader. Someone working a drawing
+set moves between neighbouring sheets, and that is measured separately below,
+because a walk built to defeat locality cannot judge anything built to exploit
+it.
+
+## Reading in order
+
+The same 50 sheets, taken in set order instead of every thirtieth, with and
+without fetching the neighbours ahead.
+
+| Measurement | prefetch off | prefetch on |
+|---|---|---|
+| Sheet change, last ten (median) | 1309 ms (1299–1334) | **664 ms** (25–1311) |
+| **Sheet changes under 300 ms** | **0 / 49** | **25 / 49** |
+| Fastest sheet change | 1299 ms | **25 ms** |
+| Returning to a visited sheet | 84 ms (69–93) | 81 ms (70–99) |
+| Memory peak | 180.5 MB | 180.9 MB |
+| Sheets painted of 50 | 50 / 50 | 50 / 50 |
+
+**The median is the least useful number here.** Sheet change is bimodal: a sheet
+whose tiles arrived in advance paints in about 25 ms, and one that missed costs
+about 1310. The median sits in a gap where no measurement lives, and it moves in
+large steps as the share of hits changes.
+
+So the figure that means something is the share: **half the sheet changes are
+served from memory, and those are roughly 50x faster.** The other half are
+unchanged, because prefetch only uses link time nothing else wants.
+
+Two consequences worth stating rather than burying:
+
+- **Prefetch is starved, not wrong.** Each neighbour is five tiles, a dwell on a
+  sheet is short, and speculative fetches run one at a time and only when nothing
+  live is outstanding. Fast and slow changes therefore alternate — a fast change
+  leaves no idle time to prepare the next one.
+- **It does nothing for the stride walk, and costs nothing there either.** That
+  walk shows 0 / 49 fast changes with prefetch on, and its sheet change is
+  unchanged at 1306 ms against 1309 with prefetch off. A guess never starts while
+  a tile someone is waiting for is queued or in flight, which is what makes
+  useless speculation free rather than harmful.
+
+Switch it off with `?prefetch=0`, the same way `?renderer=fullpage` switches
+renderer: the comparison is a URL anyone can open rather than a commit anyone has
+to check out.
 
 ### What the two renderers do differently
 
@@ -152,35 +222,47 @@ device stops it.
 
 | | change |
 |---|---|
-| First sheet on screen | 225 s → 8.45 s, **27x faster** |
-| Main-thread block on load | 1120 ms → 66 ms, **17x less** |
-| Longest single task | 875 ms → 66 ms, **13x shorter** |
-| Peak memory over 50 sheets | 2230 MB → 171 MB, **13x less** |
-| Sheet change | 210 ms → 1306 ms, **6x slower** |
-| Returning to a visited sheet | — → 98 ms |
+| First sheet on screen | 225 s → 8.44 s, **27x faster** |
+| Main-thread block on load | 1120 ms → 60 ms, **19x less** |
+| Longest single task | 875 ms → 60 ms, **15x shorter** |
+| Peak memory over 50 sheets | 2230 MB → 181 MB, **12x less** |
+| Sheet change, jumping across the set | 210 ms → 1306 ms, **6x slower** |
+| Sheet change, reading in order | 210 ms → **25 ms** on half of them |
+| Returning to a visited sheet | — → 112 ms |
 
-**The slower sheet change is real and is the honest cost.** Naive is quick between
-sheets because it already paid for all of them; every page is in memory. Tiled
-fetches what it needs per sheet, so it pays a little each time instead of
-everything once. 225 seconds of nothing versus 1.3 seconds per sheet is a trade,
-not a free win, and a session of more than about 170 sheets would spend more time
-waiting under tiled than under naive.
+**The slower sheet change is real and is the honest cost — when someone jumps.**
+Naive is quick between sheets because it already paid for all of them; every page
+is in memory. Tiled fetches what it needs per sheet, so it pays a little each
+time instead of everything once. 225 seconds of nothing versus 1.3 seconds per
+sheet is a trade, not a free win, and a session of more than about 170 scattered
+sheets would spend more time waiting under tiled than under naive.
 
-**Returning to a sheet costs 98 ms**, and that figure is a median across two
+That arithmetic assumes the scattered walk. Read the set in order and the
+viewer fetches the next sheet's coarse tiles while the link is idle, which serves
+half the sheet changes from memory at about 25 ms — faster than naive's 210 ms
+rather than slower. The 170-sheet crossover is therefore the worst case, not the
+expected one.
+
+**Returning to a sheet costs 112 ms**, and that figure is a median across two
 populations rather than one number. The tile index is memoized either way, but a
-sheet whose coarse tiles are still held repaints from memory in about 72 ms, while
-one past the cache's pinned ceiling refetches them and decodes, at about 104 ms.
-The refetch is cheap because set content is served `immutable`, so it comes from
-the browser's cache rather than the network — the gap between 104 ms and a fresh
-sheet change at 1306 ms is the whole measure of how much that header is doing.
-The row does not exist for naive, where a revisit is simply a cache hit in RAM.
+sheet whose coarse tiles are still held repaints from memory, while one past the
+cache's pinned ceiling refetches them and decodes. The refetch is cheap because
+set content is served `immutable`, so it comes from the browser's disk cache
+rather than the network — the gap between it and a fresh sheet change at 1306 ms
+is the whole measure of how much that one header is doing. The row does not exist
+for naive, where a revisit is simply a cache hit in RAM.
 
 **The memory curve is flat, and that is measured rather than argued.** A
 140-sheet run of the same script climbs 5 MB a sheet to sheet 32, then holds at
-exactly 160 MB — the cache's pinned budget — for the remaining 107 sheets. Peak
-was 173 MB at sheet 140 against 171 MB at sheet 50, with every sheet painted. The
-claim is "flat", not "slower growth": memory is bounded by the budget rather than
-by how many sheets someone opens.
+exactly the cache's pinned budget for the remaining 107 sheets, with every sheet
+painted. The claim is "flat", not "slower growth": memory is bounded by the
+budget rather than by how many sheets someone opens.
+
+That run was taken when the pinned budget was 160 MB and the peak was 173 MB. The
+budget is now 170 MB, which makes room for prefetched neighbours without evicting
+visited sheets any sooner, and the peak over fifty sheets is 181 MB. The plateau
+is the same shape at a different height — it is set by the budget, which is the
+point.
 
 It took a 140-sheet run to establish that, and the first one failed. An earlier
 build exempted the coarse levels from the budget outright, on the reasoning that
@@ -225,12 +307,12 @@ range in brackets, each run in a fresh browser context so the cache is empty.
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
 | Document open (42 MB over the link) | 217.7 s | — never opened |
-| **First sheet on screen** | **225.5 s** | **8.46 s** (8449–8569) |
+| **First sheet on screen** | **225.5 s** | **8.44 s** (8441–8522) |
 | Rasterizing one page | 278 ms (276–305) | — no PDF in the browser |
-| Main-thread block during load | 1120 ms (1037–1190) | **66 ms** (63–158) |
-| Longest single task | 875 ms (872–879) | **66 ms** (63–93) |
-| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | 3968 ms (3964–4112) |
-| Viewer's own share of the cold load | — | 1239 ms (1235–1248) |
+| Main-thread block during load | 1120 ms (1037–1190) | **60 ms** (59–148) |
+| Longest single task | 875 ms (872–879) | **60 ms** (59–91) |
+| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | 3952 ms (3952–4080) |
+| Viewer's own share of the cold load | — | 1236 ms (1234–1246) |
 | JS heap after first sheet | 21 MB | 8 MB |
 
 Three runs landed within 37 ms of each other (225539–225576). That is not
@@ -278,27 +360,30 @@ have not been fetched — what someone does to read a detail.
 
 | | `pan` | `zoomSteady` | `zoomDeepening` |
 |---|---|---|---|
-| Input to paint, event timing median | 40 ms | **32 ms** | 64 ms |
-| Input to paint, event timing p95 | 40 ms | 64 ms | 64 ms |
-| Input to paint, settle median | — | 60 ms | 100 ms |
-| Input to paint, settle p95 | — | 75 ms | 118 ms |
-| Frame interval p95 | 26 ms | 33 ms | 52 ms |
-| Worst frame interval | 27 ms | 36 ms | **54 ms** |
-| Main thread blocked | **0 ms** | **0 ms** | 358 ms |
-| Longest single task | 0 ms | 0 ms | 54 ms |
+| Input to paint, settle median | — | 60 ms | 92 ms |
+| Input to paint, settle p95 | — | 72 ms | 114 ms |
+| Frame interval p95 | 25 ms | 32 ms | 49 ms |
+| Worst frame interval | 26 ms | 34 ms | **51 ms** |
+| Main thread blocked | **0 ms** | **0 ms** | 156 ms |
+| Longest single task | 0 ms | 0 ms | 53 ms |
 
 **The gesture layer costs nothing measurable; fetching new detail costs
 everything.** Panning and zooming inside cached scale block the main thread for
-0 ms across the whole gesture, and no frame exceeds 36 ms. The moment a pinch
-crosses into levels that have not been fetched, blocking goes to 358 ms, the
+0 ms across the whole gesture, and no frame exceeds 34 ms. The moment a pinch
+crosses into levels that have not been fetched, blocking goes to 156 ms, the
 worst frame crosses the 50 ms long-task line, and input to paint roughly doubles.
 Every interaction cost in this app is tile work, not input handling.
 
-**Against the three budgets.** Input to paint is 32 ms at the median when the
-tiles are there, which is exactly the budget and nothing to spare; it is 64 ms
-when they are not. Frame intervals miss 16.7 ms in every scenario — 26 ms at p95
-while panning is about 38 frames a second, not 60. The 50 ms long-task line is
-met everywhere except `zoomDeepening`, which exceeds it at 54 ms.
+`zoomDeepening` blocking was **358 ms** when first measured and reads 156 ms
+(103–205) now. Nothing was done to it directly; the tile-path fixes in between —
+a leaked bitmap, a second fetcher outside the queue, a pinned set that never
+evicted — are the plausible causes, and none of them was aimed here. It is
+recorded as an observation rather than claimed as a result.
+
+**Against the three budgets.** Frame intervals miss 16.7 ms in every scenario —
+25 ms at p95 while panning is about 40 frames a second, not 60. The 50 ms
+long-task line is met everywhere except `zoomDeepening`, which exceeds it at
+51 ms.
 
 So: responsive while it has what it needs, and visibly not while it is fetching.
 That is the same shape as the sheet-change cost in the session table, and it has
@@ -356,24 +441,87 @@ yields zero and any single long task would fail the run, so those use an absolut
 physical fact rather than an observation.
 
 The 400 MB figure in the session table remains a marker on the memory curve
-rather than the pass mark; the memory gate is 216 MB, from the 173 MB measured
-over 140 sheets. It was 324 MB, derived from a 259 MB reading taken while memory
-was still climbing without bound — a reminder that a gate is only as sound as the
-behaviour it was calibrated against, and that reading was honest about a system
-that was not.
+rather than the pass mark; the memory gate is 227 MB, from the 181.4 MB measured
+across the three session walks. It has been wrong before in an instructive way —
+it was once 324 MB, derived from a 259 MB reading taken while memory was still
+climbing without bound. A gate is only as sound as the behaviour it was
+calibrated against, and that reading was honest about a system that was not.
 
-The revisit gate is 130 ms rather than 25% over the 98 ms median, because revisit
-is bimodal: ~72 ms inside the pinned ceiling, ~104 ms past it. The spec samples
-three sheets without knowing which side they fall on, so its median moves with the
-draw, and a gate has to clear the slower population.
+**Two gates are set from the worst reading rather than the median**, because
+their spread is wider than the headroom and a gate under the worst observed run
+is a gate that fails on a good day:
+
+- **Revisit, 165 ms.** Revisit is bimodal — fast inside the pinned ceiling, slow
+  past it, where tiles are refetched from the browser's disk cache and decoded.
+  The spec samples three sheets without knowing which side they fall on, so its
+  median moves with the draw.
+- **Worst pan frame, 44 ms.** This one was previously 34 ms and passed twice by a
+  single millisecond, against readings spanning 26–35. A gate sitting inside its
+  own noise band is a gate that will eventually fail for no reason.
+
+**One gate is not a time at all.** On the sequential walk, sheet change is
+bimodal by construction — about 25 ms on a prefetch hit, about 1310 on a miss —
+so a median gate would sit in a gap and, worse, could not catch the regression
+that matters: if prefetch stopped working the median would land near 1310, still
+inside any budget loose enough to tolerate an unlucky sample. That walk is
+instead graded on **the share of sheet changes under 300 ms, which must stay at
+or above 25%**. Measured 39% and 51%. It was verified by running the same walk
+with prefetch disabled, where it reads 0% and the gate fails — a gate that has
+never been seen to fail is a decoration.
+
+One gate moved sharply downward. `zoomDeepening` blocking was 448 ms, from an
+earlier 358 ms reading; it now measures 156 ms (103–205) and the gate is 256 ms.
+The old figure would have passed a 2.9x regression.
 
 ## To be measured
 
 | What | Status |
 |---|---|
 | Pinch-zoom input to paint | Measured — see Interaction above |
+| Tile cache hit rate | Measured — 67% on revisits, see below |
+| Warm start after a reload | Measured — `storage-probe.spec.ts` |
 | Zoom image quality past rasterized resolution | Not started |
-| Warm start from a persistent cache | Needs the persistent tile cache |
-| Tile cache hit rate | Needs the in-app counters that expose it |
 | Bundle size per remote | Not started |
 | Slow 3G and LTE connection profiles | Not started |
+
+### Where a tile comes from after a reload
+
+`storage-probe.spec.ts` times opening one sheet under three conditions. It grades
+nothing; it exists because a scope decision rested on the answer.
+
+| | sheet open |
+|---|---|
+| Cold, first ever visit | 1395–1404 ms |
+| **After a full reload — memory empty, HTTP cache warm** | **93–100 ms** |
+| Revisit inside one session — tiles still decoded | 66–68 ms |
+| After a reload with the HTTP cache disabled | 1352–1357 ms |
+
+**The browser's own disk cache is doing nearly all of the work**: 14x faster than
+the network and only 1.4x slower than holding decoded tiles in memory. Tiles are
+served `immutable`, so this is free and already happening.
+
+That is why there is no IndexedDB tile store. It would be a second disk cache
+beside one that works, and it could not even recover the gap to memory, since it
+would hold encoded blobs and pay the same decode. A store still has a use —
+the browser may evict its cache silently, and offline needs explicit storage —
+but that is an offline feature, not a performance one.
+
+The `cache disabled` row is not decoration. It is what proves the other rows mean
+anything: if disabling the cache had changed nothing, every figure would have
+read ~95 ms and the conclusion would have been the opposite, drawn from an
+experiment in which nothing was ever varied. The spec asserts that row is at
+least twice the warm one.
+
+### Cache hit rate
+
+The viewer counts a tile once per time it enters the set of tiles the renderer
+needs, not once per lookup — the draw loop asks for the same tiles on every
+animation frame, so counting per lookup measured frame rate rather than hit rate.
+
+Over the revisit phase of a 50-sheet session: **10 of 15 tiles resident, 67%.**
+The spec samples the first, middle and last sheet visited, which is close to the
+worst case the pinned ceiling allows, since the oldest sheet has usually been
+evicted. The cumulative rate over a whole session is 0% and tells you nothing —
+every sheet in a one-way walk is seen for the first time, so it can only miss.
+
+Live figures are on screen with `?perf=1`.
