@@ -75,8 +75,14 @@
   min-height: 0;
 }
 
+/* The rail runs the full height beside whichever app is showing. */
+.shell-body > .gf-toolbar--vertical {
+  flex: 0 0 auto;
+}
+
 .shell-sheets {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   background: var(--surface-canvas);
 }

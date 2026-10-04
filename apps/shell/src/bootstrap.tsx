@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import "@gridline/platform/tokens.css";
+import "@gridline/platform/ui.css";
 
 import { App } from "./app";
 import { startMockNetwork } from "./mocks/browser";
