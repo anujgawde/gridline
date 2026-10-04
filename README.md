@@ -168,8 +168,9 @@ Pre-alpha.
 
 **Built**
 
-- Platform package: design tokens, the event bus, and ten UI primitives.
+- Platform package: design tokens, the event bus, and eleven UI primitives.
 - Shell: renders its chrome from the tokens and loads the viewer and the navigator at runtime. Active-sheet state crosses the bus between them.
+- Navigator: all 1,500 sheets in a virtualised grid with thumbnails and discipline filters (`?view=sheets`), and as a list beside the drawing. A click opens a sheet; the grid also moves by arrow key and opens on Enter, and beside a drawing Shift+Up and Shift+Down step through the set.
 - All three apps run from their production builds on separate origins.
 - The synthetic drawing set generator.
 - `tools/tiler`, which builds the tile pyramid offline.
@@ -183,7 +184,6 @@ Pre-alpha.
 **Not built yet**
 
 - Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
-- Opening a sheet from its navigator card. `?view=sheets` lists all 1,500 sheets in a virtualised grid with thumbnails and discipline filters
 - The compare remote
 - Markup
 - Per-app deployment pipelines

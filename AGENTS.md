@@ -14,8 +14,11 @@ Pre-alpha. The workspace packages:
   other copy.
 - **`apps/shell`** — `@gridline/shell`. Rspack + React. Renders the chrome from
   the tokens and is the Module Federation host. Loads the viewer's sheet surface
-  and the navigator's panel at runtime, and shows active-sheet state published on
-  the bus.
+  and the navigator at runtime, and shows active-sheet state published on the
+  bus. Owns which of them is on screen: the rail's "Sheet index" opens the
+  full-screen grid, any `sheet:open` switches back to the drawing, and the
+  address follows, so Back returns to the grid. The sheet stepper in the top
+  bar shows only with the drawing.
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
 - **`apps/navigator`** — `@gridline/navigator`. The second remote. Exposes
@@ -25,7 +28,12 @@ Pre-alpha. The workspace packages:
   the viewport are in the DOM. `?grid=full` draws every card instead, kept as
   the measured baseline. Cards show each sheet's level-0 tile as a thumbnail,
   loaded only while on screen; `?thumbs=0` turns them off. A toggle per
-  discipline filters the grid.
+  discipline filters the grid. The panel is the same virtual grid in one
+  column of rows, marking the sheet the viewer last painted. In both, a click
+  publishes `sheet:open`. On the full-screen grid, arrows and Home/End move
+  between sheets as soon as it loads, and Enter opens one; beside a drawing,
+  Shift+Up and Shift+Down open the previous and next sheet from anywhere on
+  the page.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -41,7 +49,7 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, opening a sheet from the navigator, the compare remote, and the primitives the navigator
+Still to build: a pipeline per app, the compare remote, and the primitives the navigator
 needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 
