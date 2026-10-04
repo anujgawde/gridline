@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
+import { NAVIGATOR_BUDGETS } from "./budgets";
 import { format, summarize } from "./stats";
 import { applyProfile, collectLongTasks, PROFILE, readLongTasksSince } from "./throttle";
 
@@ -140,4 +141,11 @@ test(`navigator filters (${GRID}) — toggle each discipline`, async ({ browser 
   console.log(`    filter applied          ${format(result.filterApplied)}, p95 ${result.filterApplied.p95} ms`);
   console.log(`    longest task, toggling  ${format(result.longestTask)}`);
   console.log(`\n  written to perf-results/${file}\n`);
+
+  /* The full grid is the control and is not graded. */
+  if (GRID !== "virtual") return;
+  const gate = NAVIGATOR_BUDGETS.filter;
+  expect.soft(result.filterApplied.median!, "filter applied over budget").toBeLessThanOrEqual(gate.appliedMs);
+  expect.soft(result.filterApplied.max!, "slowest filter toggle over budget").toBeLessThanOrEqual(gate.worstAppliedMs);
+  expect.soft(result.longestTask.max!, "a filter toggle blocked the main thread").toBeLessThanOrEqual(gate.longestTaskMs);
 });

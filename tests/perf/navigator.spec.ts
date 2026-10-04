@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
+import { NAVIGATOR_BUDGETS } from "./budgets";
 import { LONG_FRAME_MS, traceScroll } from "./scroll-trace";
 import { format, summarize } from "./stats";
 import {
@@ -32,7 +33,8 @@ import {
    PERF_JANK=1 stalls the main thread 80 ms on every scroll event. It exists to
    confirm the spec can see a regression: both readings must move under it.
 
-   No gates. This is the baseline; gates are set from it. */
+   Only the virtual grid is gated, and not under PERF_JANK: the full grid is the
+   baseline and fails by construction, and a jank run exists to fail. */
 
 const RUNS = Number(process.env.PERF_RUNS ?? 3);
 const JANK = process.env.PERF_JANK === "1";
@@ -194,4 +196,13 @@ test(`navigator grid (${GRID}) — load and scroll`, async ({ browser }) => {
 
   expect(samples.every((s) => s.frameCount > 0)).toBe(true);
   expect(samples.every((s) => s.gridShownMs !== null)).toBe(true);
+
+  if (GRID !== "virtual" || JANK) return;
+  const gate = NAVIGATOR_BUDGETS.grid;
+  expect.soft(result.dom.nodes.median!, "DOM nodes over budget — is the grid still virtualised?").toBeLessThanOrEqual(gate.domNodes);
+  expect.soft(result.load.gridShown.median!, "grid shown over budget").toBeLessThanOrEqual(gate.gridShownMs);
+  expect.soft(result.load.longestTask.median!, "longest task while loading over budget").toBeLessThanOrEqual(gate.loadLongestTaskMs);
+  expect.soft(result.scroll.frameP95.median!, "scroll frame p95 over budget").toBeLessThanOrEqual(gate.scrollFrameP95Ms);
+  expect.soft(result.scroll.longFrames.median!, "too many long frames while scrolling").toBeLessThanOrEqual(gate.scrollLongFrames);
+  expect.soft(result.scroll.mainThread.median!, "main-thread rendering while scrolling over budget").toBeLessThanOrEqual(gate.scrollMainThreadMs);
 });

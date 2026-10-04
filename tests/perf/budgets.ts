@@ -35,13 +35,16 @@ export const HEADROOM = 1.25;
 export const BUDGETS = {
   /* Cold start. Median of 3 runs, 4x CPU / 1.6 Mbit/s. */
   baseline: {
-    /* 8461 ms measured (8449–8569). Later runs have read as high as 9004, so the
-       spread is wider than the first three suggested; the gate still clears it. */
-    coldSheetOnCanvasMs: 10_600,
-    /* 66 ms measured, but the spread was 63–158. Set from the worst reading,
-       because 25% over the median would sit under a run we actually saw. */
-    mainThreadBlockedMs: 200,
-    // 66 ms measured (63–93) — also set from the worst reading.
+    /* 9549 ms measured (8987–9577), re-taken with the navigator panel and the
+       shell's rail on the page and under the shared-link throttle. Was 10 600
+       from an 8461 reading taken before both; that left the worst run 10%
+       clear, inside the noise. */
+    coldSheetOnCanvasMs: 11_940,
+    /* 134 ms measured, but the spread was 133–245. Set from the worst reading,
+       because 25% over the median would sit under a run we actually saw. Was
+       200, which that 245 exceeded. */
+    mainThreadBlockedMs: 306,
+    // 81 ms measured (68–93) — set from the worst reading.
     longestTaskMs: 120,
   },
 
@@ -102,7 +105,13 @@ export const BUDGETS = {
   },
 
   /* Interaction on a loaded sheet. Median of 5 runs, and the tightest spreads
-     of anything here. */
+     of anything here.
+
+     Re-taken after the navigator panel landed, every reading came in under
+     the figures below — zoomDeepening blocking at 0 ms (0–0) against 156 —
+     and nothing on the viewer's tile path changed to explain it. The gates
+     are left where they are until a second session agrees: tightened to one
+     good day, they would fail on an ordinary one. */
   interaction: {
     pan: {
       /* 26 ms measured (26–27) in the latest run, but readings across runs span
@@ -137,6 +146,39 @@ export const BUDGETS = {
          than a real change, the 358 history is the thing to check first. */
       blockedMs: 256,
     },
+  },
+} as const;
+
+/* The navigator. Virtual grid only: the full grid is the measured baseline and
+   fails by construction. 4x CPU, median of 3 runs. */
+export const NAVIGATOR_BUDGETS = {
+  grid: {
+    /* 344 measured, the same every run. The gate that catches the grid no
+       longer being virtualised: drawing every card is 7559. */
+    domNodes: 430,
+    /* 71 ms measured (71–86), and 89 in another session the same day — set
+       from that worst reading. */
+    gridShownMs: 111,
+    // 76 ms measured (68–79).
+    loadLongestTaskMs: 95,
+    // 17 ms measured (17–18).
+    scrollFrameP95Ms: 23,
+    /* 1 measured (0–1). A count, so 25% of it rounds to nothing; one more
+       long frame than ever observed. */
+    scrollLongFrames: 2,
+    /* 2288 ms measured (2256–2394), and 1889–2429 in a later session of the
+       same build. Set from that worst reading: this figure moves by several
+       hundred ms between sessions with no code change. */
+    scrollMainThreadMs: 3040,
+  },
+  filter: {
+    // 18 ms median measured over 42 toggles (14–74) — about one frame.
+    appliedMs: 23,
+    /* 74 ms worst measured, and 79 in 3.6's readings. Always the first
+       toggle of a run. */
+    worstAppliedMs: 99,
+    /* 0 ms measured. The absolute long-task line, as for interaction. */
+    longestTaskMs: 50,
   },
 } as const;
 
