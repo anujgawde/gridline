@@ -203,6 +203,77 @@ first, so it cannot tell whether that is the page's first interaction or
 something about that discipline; a gate on the worst toggle has to allow for
 it either way.
 
+## Scroll main-thread time across the navigator's steps
+
+Scrolling the virtual grid end to end read 1399 ms of main-thread rendering when
+it was first built and about 1950 ms once the navigator was finished. Frames did
+not move: p95 is 17–18 ms at every step. To find where the time came from, the
+grid was built at each step from a clean checkout and measured back to back in
+one session, so a difference between sessions cannot pass for a difference
+between steps.
+
+| after | DOM nodes | main-thread rendering, median of 3 |
+|---|---|---|
+| virtual grid | 264 | 1499 ms (1468–1516) |
+| thumbnails, switched off | 264 | 1612 ms (1596–1629) |
+| discipline filters | 308 | 1670 ms (1654–1685) |
+| click to open, side panel, keyboard | 344 | 1949 ms (1932–1956) |
+
+**Opening sheets from the grid added the most, about 280 ms over a 15-second
+scroll.** That step turned each card into a button and gave the grid a tab stop
+and a key handler. Removing the cards' hover border did not recover it, and the
+cause is not pinned down.
+
+**This figure moves between sessions with no change to the code.** The same
+build read 2256–2394 ms in one session and 1889–2429 in another, which is why
+its gate is set from the worst reading and why steps are compared only within
+one session.
+
+**Main-thread time is not what virtualisation saves.** With every row drawn,
+the same scroll read 1342 ms: a grid that never re-renders does less work while
+scrolling than one that adds and removes rows as they pass. What virtualisation
+saves is the DOM and the first render, and those are the gates that catch it
+being lost.
+
+## Gates
+
+In `tests/perf/budgets.ts` as `NAVIGATOR_BUDGETS`, asserted by
+`navigator.spec.ts` and `filters.spec.ts` on the virtual grid. Each is a
+measurement plus 25%, or the worst reading plus 25% where runs spread wider than
+that.
+
+| gate | measured | budget |
+|---|---|---|
+| DOM nodes | 344 | 430 |
+| Grid shown | 71 ms (71–86; 89 in another session) | 111 ms |
+| Longest task while loading | 76 ms (68–79) | 95 ms |
+| Scroll frame p95 | 17 ms (17–18) | 23 ms |
+| Frames over 25 ms while scrolling | 1 (0–1) | 2 |
+| Scroll main-thread rendering | 2288 ms (2256–2394; 1889–2429 in another session) | 3040 ms |
+| Filter applied, median | 18 ms (14–74, 42 toggles) | 23 ms |
+| Filter applied, slowest toggle | 74 ms | 99 ms |
+| Longest task while filtering | 0 ms | 50 ms, the long-task line |
+
+**Each was seen to fail.** With the overscan raised until the grid drew every
+row, one run of each spec read:
+
+| | broken | budget |
+|---|---|---|
+| DOM nodes | 7829 | 430 |
+| Grid shown | 292 ms | 111 ms |
+| Longest task while loading | 152 ms | 95 ms |
+| Filter applied, median | 78 ms | 23 ms |
+| Filter applied, slowest | 147 ms | 99 ms |
+| Longest task while filtering | 132 ms | 50 ms |
+
+The scroll gates stayed green, which is the point of the section above: a grid
+drawing everything scrolls as smoothly and with less main-thread work. What the
+scroll main-thread gate catches is work added to scrolling: under the jank
+control described earlier it read 14996 ms against a 3040 ms budget. Frame p95
+and long frames did not move enough there to trip theirs — the compositor keeps
+scrolling smooth through a busy main thread — so they guard against a change
+that reaches the frames themselves, and have not been seen to fail.
+
 ## Reproduce
 
 ```sh

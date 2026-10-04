@@ -144,14 +144,14 @@ failure, and the sheet number it happens at, is the result.
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
 | Document open (1,500 pages) | 217 s | — never opened |
-| First sheet on screen | 225 s | **8.44 s** |
-| Sheet change, first ten (median) | 210 ms (174–224930) | 1309 ms (1305–7917) |
-| Sheet change, last ten (median) | 224 ms (181–251) | 1306 ms (1300–1311) |
-| **Returning to a visited sheet** | not measured | **112 ms** (83–116) |
-| Worst frame, first ten | 25 ms (23–35) † | 27 ms (27–29) |
-| Worst frame, last ten | 24 ms (22–27) † | 29 ms (27–35) |
-| Memory at sheet 1 | 59.9 MB | 13.6 MB |
-| **Memory peak** | **2230 MB** (2180 MB canvas) | **181 MB** (170 MB tiles) |
+| First sheet on screen | 225 s | **9.00 s** |
+| Sheet change, first ten (median) | 210 ms (174–224930) | 1831 ms (1819–8506) |
+| Sheet change, last ten (median) | 224 ms (181–251) | 1821 ms (1817–1824) |
+| **Returning to a visited sheet** | not measured | **84 ms** (69–88) |
+| Worst frame, first ten | 25 ms (23–35) † | 22 ms (20–24) |
+| Worst frame, last ten | 24 ms (22–27) † | 21 ms (20–23) |
+| Memory at sheet 1 | 59.9 MB | 15 MB |
+| **Memory peak** | **2230 MB** (2180 MB canvas) | **182 MB** (170 MB tiles) |
 | Memory passes 400 MB at | **sheet 9** | never |
 | Sheets painted of 50 | 50 / 50 | 50 / 50 |
 
@@ -159,7 +159,9 @@ failure, and the sheet number it happens at, is the result.
 and have not been re-run. Every other `fullpage` figure here is driven by the
 42 MB transfer, main-thread parsing, or retained pages — none of which the input
 layer or the panel touches — so those stand. The `tiled` column was re-taken in
-full afterwards.
+full after the navigator landed, under the shared-link throttle; sheet change
+rose from 1306 to 1821 ms with it, because a sheet's tiles now split one link
+between them as they would on a real connection.
 
 **The `tiled` memory peak rose from 171 MB to 181 MB**, deliberately: the pinned
 coarse-tile ceiling went from 160 MB to 170 MB to make room for prefetched
@@ -185,11 +187,15 @@ without fetching the neighbours ahead.
 
 | Measurement | prefetch off | prefetch on |
 |---|---|---|
-| Sheet change, last ten (median) | 1309 ms (1299–1334) | **664 ms** (25–1311) |
-| **Sheet changes under 300 ms** | **0 / 49** | **25 / 49** |
-| Fastest sheet change | 1299 ms | **25 ms** |
-| Returning to a visited sheet | 84 ms (69–93) | 81 ms (70–99) |
-| Memory peak | 180.5 MB | 180.9 MB |
+| Sheet change, last ten (median) | 1309 ms (1299–1334) | **1325 ms** (37–1818) |
+| **Sheet changes under 300 ms** | **0 / 49** | **17 / 49** |
+| Fastest sheet change | 1299 ms | **35 ms** |
+| Returning to a visited sheet | 84 ms (69–93) | 84 ms (75–93) |
+| Memory peak | 180.5 MB | 182.3 MB |
+
+The prefetch-on column was re-taken after the navigator landed, under the
+shared-link throttle; earlier runs of the same walk read 19 and 25 of 49. The
+prefetch-off column is from before the shared link and was not re-taken.
 | Sheets painted of 50 | 50 / 50 | 50 / 50 |
 
 **The median is the least useful number here.** Sheet change is bimodal: a sheet
@@ -197,8 +203,9 @@ whose tiles arrived in advance paints in about 25 ms, and one that missed costs
 about 1310. The median sits in a gap where no measurement lives, and it moves in
 large steps as the share of hits changes.
 
-So the figure that means something is the share: **half the sheet changes are
-served from memory, and those are roughly 50x faster.** The other half are
+So the figure that means something is the share: **between a third and a half of
+the sheet changes are served from memory (17–25 of 49 across runs), and those
+are roughly 50x faster.** The other half are
 unchanged, because prefetch only uses link time nothing else wants.
 
 Two consequences worth stating rather than burying:
@@ -315,13 +322,20 @@ range in brackets, each run in a fresh browser context so the cache is empty.
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
 | Document open (42 MB over the link) | 217.7 s | — never opened |
-| **First sheet on screen** | **225.5 s** | **8.44 s** (8441–8522) |
+| **First sheet on screen** | **225.5 s** | **9.55 s** (8987–9577) |
 | Rasterizing one page | 278 ms (276–305) | — no PDF in the browser |
-| Main-thread block during load | 1120 ms (1037–1190) | **60 ms** (59–148) |
-| Longest single task | 875 ms (872–879) | **60 ms** (59–91) |
-| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | 3952 ms (3952–4080) |
-| Viewer's own share of the cold load | — | 1236 ms (1234–1246) |
-| JS heap after first sheet | 21 MB | 8 MB |
+| Main-thread block during load | 1120 ms (1037–1190) | **134 ms** (133–245) |
+| Longest single task | 875 ms (872–879) | **81 ms** (68–93) |
+| Shell chrome on screen (before any remote) | 3976 ms (3972–4068) | 4220 ms (4168–4296) |
+| Viewer's own share of the cold load | — | 1504 ms (1500–1519) |
+| JS heap after first sheet | 21 MB | 9 MB |
+
+The `tiled` column was re-taken once the navigator was finished: its panel now
+loads beside the drawing, the shell has a rail, and every response from a server
+shares one throttled link. First sheet was 8.44 s, main-thread block 60 ms and
+the viewer's own share 1236 ms before those changes. Both changed between the two
+readings and these runs do not separate them. The `fullpage` column was not
+re-taken.
 
 Three runs landed within 37 ms of each other (225539–225576). That is not
 precision, it is a measurement dominated by a fixed transfer: 42 MB at a fixed
@@ -368,19 +382,26 @@ have not been fetched — what someone does to read a detail.
 
 | | `pan` | `zoomSteady` | `zoomDeepening` |
 |---|---|---|---|
-| Input to paint, settle median | — | 60 ms | 92 ms |
-| Input to paint, settle p95 | — | 72 ms | 114 ms |
-| Frame interval p95 | 25 ms | 32 ms | 49 ms |
-| Worst frame interval | 26 ms | 34 ms | **51 ms** |
-| Main thread blocked | **0 ms** | **0 ms** | 156 ms |
-| Longest single task | 0 ms | 0 ms | 53 ms |
+| Input to paint, settle median | — | 41 ms | 50 ms |
+| Input to paint, settle p95 | — | 66 ms | 63 ms |
+| Frame interval p95 | 18 ms | 21 ms | 22 ms |
+| Worst frame interval | 19 ms | 21 ms | 25 ms |
+| Main thread blocked | **0 ms** | **0 ms** | **0 ms** |
+| Longest single task | 0 ms | 0 ms | 0 ms |
 
-**The gesture layer costs nothing measurable; fetching new detail costs
-everything.** Panning and zooming inside cached scale block the main thread for
-0 ms across the whole gesture, and no frame exceeds 34 ms. The moment a pinch
-crosses into levels that have not been fetched, blocking goes to 156 ms, the
-worst frame crosses the 50 ms long-task line, and input to paint roughly doubles.
-Every interaction cost in this app is tile work, not input handling.
+Re-taken after the navigator landed. The previous reading of the same spec was
+60 / 92 ms settle median, 25 / 32 / 49 ms frame p95, and 156 ms blocked on
+`zoomDeepening`. Every figure fell and nothing on the viewer's input or tile path
+changed in between, so this is recorded as an observation from one session, not
+claimed as a result; the gates were left at the earlier readings until a second
+session agrees.
+
+**The gesture layer costs nothing measurable.** Panning and zooming inside
+cached scale block the main thread for 0 ms across the whole gesture. Crossing
+into levels that have not been fetched was the expensive case — 156 ms blocked
+and a 51 ms worst frame in the earlier reading, against 0 ms and 25 ms in the
+latest — so whatever interaction cost this app has is tile work, not input
+handling.
 
 `zoomDeepening` blocking was **358 ms** when first measured and reads 156 ms
 (103–205) now. Nothing was done to it directly; the tile-path fixes in between —
@@ -388,14 +409,9 @@ a leaked bitmap, a second fetcher outside the queue, a pinned set that never
 evicted — are the plausible causes, and none of them was aimed here. It is
 recorded as an observation rather than claimed as a result.
 
-**Against the three budgets.** Frame intervals miss 16.7 ms in every scenario —
-25 ms at p95 while panning is about 40 frames a second, not 60. The 50 ms
-long-task line is met everywhere except `zoomDeepening`, which exceeds it at
-51 ms.
-
-So: responsive while it has what it needs, and visibly not while it is fetching.
-That is the same shape as the sheet-change cost in the session table, and it has
-the same cause.
+**Against the three budgets.** Frame intervals still miss 16.7 ms at p95 in
+every scenario, by 1–5 ms in the latest reading. The 50 ms long-task line is met
+everywhere; in the earlier reading `zoomDeepening` exceeded it at 51 ms.
 
 ### Two things to know before reading these numbers
 
@@ -478,8 +494,13 @@ with prefetch disabled, where it reads 0% and the gate fails — a gate that has
 never been seen to fail is a decoration.
 
 One gate moved sharply downward. `zoomDeepening` blocking was 448 ms, from an
-earlier 358 ms reading; it now measures 156 ms (103–205) and the gate is 256 ms.
-The old figure would have passed a 2.9x regression.
+earlier 358 ms reading; it then measured 156 ms (103–205) and the gate is 256 ms.
+The old figure would have passed a 2.9x regression. The latest reading is 0 ms,
+from one session; the gate stays at 256 until a second agrees.
+
+Two cold-start gates were re-derived when the panel landed: first sheet on
+canvas to 11 940 ms from 9549 (8987–9577), and main-thread block to 306 ms from
+the worst of 133–245, which the old 200 ms gate sat under.
 
 ## To be measured
 

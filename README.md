@@ -124,13 +124,15 @@ Test conditions:
 
 | Measurement | `fullpage` | `tiled` |
 |---|---|---|
-| First sheet on screen, cold | 225.5 s | **8.44 s** |
-| Main-thread block during load | 1120 ms | **60 ms** |
-| Longest single task | 875 ms | **60 ms** |
-| Peak memory over a 50-sheet session | 2230 MB | **181 MB** |
-| Sheet change, jumping across the set | **210 ms** | 1306 ms |
-| Sheet change, reading in order | **210 ms** | **25 ms** on half of them |
-| Return to a visited sheet | not measured | **112 ms** |
+| First sheet on screen, cold | 225.5 s | **9.55 s** |
+| Main-thread block during load | 1120 ms | **134 ms** |
+| Longest single task | 875 ms | **81 ms** |
+| Peak memory over a 50-sheet session | 2230 MB | **182 MB** |
+| Sheet change, jumping across the set | **210 ms** | 1821 ms |
+| Sheet change, reading in order | **210 ms** | **35 ms** on a third to a half of them |
+| Return to a visited sheet | not measured | **84 ms** |
+
+The `tiled` column was re-taken with the navigator and the shell's rail on the page, and with every response from a server sharing one throttled link, as a real connection does. The `fullpage` column is from earlier runs; its figures are dominated by the 42 MB transfer, which neither change touches.
 
 ### `fullpage`
 
@@ -145,22 +147,22 @@ Decoded tiles are held in a memory cache with two tiers:
 - **Detail tiles** — up to 256 MB, least-recently-used evicted first. Evicted bitmaps are closed explicitly, because canvas pixels live outside the JS heap and do not appear in `JSHeapUsedSize` or `performance.memory`.
 - **Coarse tiles** — the low-resolution levels that let a revisited sheet repaint immediately. They have their own 170 MB ceiling and are evicted one whole sheet at a time, because a sheet missing one coarse tile paints with a hole in it. The ceiling is set in bytes, not sheets, because cost depends on sheet shape: five tiles for a standard landscape sheet, eight for portrait.
 
-Memory stays flat. Over 140 sheets it rises about 5 MB per sheet, then holds at the coarse-tile ceiling for the rest of the session, with every sheet painted. Peak over fifty sheets is 181 MB. Memory depends on the budget, not on how many sheets are opened.
+Memory stays flat. Over 140 sheets it rises about 5 MB per sheet, then holds at the coarse-tile ceiling for the rest of the session, with every sheet painted. Peak over fifty sheets is 182 MB. Memory depends on the budget, not on how many sheets are opened.
 
 ### Sheet change: jumping vs. reading in order
 
 The two sheet-change rows measure the same code under two reading patterns.
 
-- **Jumping (1306 ms)** visits every thirtieth sheet. Nothing nearby is ever reused, so no result depends on luck.
-- **Reading in order (25 ms on half)** visits the same 50 sheets in sequence. While the network is idle, the viewer fetches the coarse tiles of neighbouring sheets. Half of the sheet changes are then served from memory; the other half are no faster. The results fall into two groups, so the table reports the split instead of a median. With `?prefetch=0`, 0 of 49 changes are fast instead of 25.
+- **Jumping (1821 ms)** visits every thirtieth sheet. Nothing nearby is ever reused, so no result depends on luck.
+- **Reading in order (35 ms on a third to a half)** visits the same 50 sheets in sequence. While the network is idle, the viewer fetches the coarse tiles of neighbouring sheets. Between 17 and 25 of the 49 sheet changes, across runs, are then served from memory; the rest are no faster. The results fall into two groups, so the table reports the split instead of a median. With `?prefetch=0`, 0 of 49 changes are fast.
 
-`fullpage` is faster between sheets because it paid for all of them up front. Prefetching does not help a reader who jumps around the set, so 1306 ms remains the real cost of a jump.
+`fullpage` is faster between sheets because it paid for all of them up front. Prefetching does not help a reader who jumps around the set, so 1821 ms remains the real cost of a jump.
 
 ### Revisits
 
-The 112 ms revisit figure is a median over two groups. Sheets that still hold their coarse tiles repaint from memory. Sheets evicted past the ceiling refetch their tiles from the browser cache and decode them. Both are fast because tiles are served `immutable`; opening a new sheet over the same link takes 1306 ms.
+The 84 ms revisit figure is a median over two groups. Sheets that still hold their coarse tiles repaint from memory. Sheets evicted past the ceiling refetch their tiles from the browser cache and decode them. Both are fast because tiles are served `immutable`; opening a new sheet over the same link takes 1821 ms.
 
-Revisit time rose from 98 ms to 112 ms when prefetch was added. Prefetched sheets share the coarse tier with visited ones, so visited sheets are evicted sooner.
+Revisit time depends on which group the three sampled sheets fall in. Prefetched sheets share the coarse tier with visited ones, so visited sheets are evicted sooner: it read 98 ms before prefetch, 112 ms after, and 84 ms in the latest runs.
 
 ## Status
 
