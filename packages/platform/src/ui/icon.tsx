@@ -17,6 +17,7 @@ const PATHS: Record<IconName, readonly string[]> = {
     "M12 9v4",
     "M12 17h.01",
   ],
+  check: ["M20 6 9 17l-5-5"],
   "cloud-off": [
     "m2 2 20 20",
     "M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193",
@@ -47,6 +48,12 @@ const PATHS: Record<IconName, readonly string[]> = {
     "m11.5 9.5-2 2",
     "m8.5 6.5-2 2",
     "m17.5 15.5-2 2",
+  ],
+  "search-x": [
+    "m13.5 8.5-5 5",
+    "m8.5 8.5 5 5",
+    "M19 11a8 8 0 1 1-16 0a8 8 0 0 1 16 0",
+    "m21 21-4.3-4.3",
   ],
   slash: ["M22 2 2 22"],
   "square-dashed": [

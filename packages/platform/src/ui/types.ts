@@ -5,6 +5,7 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
    silently renders nothing. */
 export type IconName =
   | "alert-triangle"
+  | "check"
   | "cloud-off"
   | "hand"
   | "maximize"
@@ -13,6 +14,7 @@ export type IconName =
   | "pencil"
   | "plus"
   | "ruler"
+  | "search-x"
   | "slash"
   | "square-dashed"
   | "x";
