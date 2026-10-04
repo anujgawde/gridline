@@ -107,6 +107,74 @@
   cursor: not-allowed;
 }
 
+/* ---------- ListItem ---------- */
+.gf-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--row-h);
+  padding: 0 var(--space-3);
+  font: var(--type-body);
+  text-align: left;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-bottom: var(--border-w) solid var(--border-hairline);
+  cursor: pointer;
+  transition: var(--transition-control);
+  user-select: none;
+}
+.gf-list-item:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.gf-list-item:active:not(:disabled) {
+  background: var(--surface-active);
+}
+.gf-list-item:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+/* The accent bar is an inset shadow rather than a border, so selecting a row
+   does not change its width or its content's position. */
+.gf-list-item--selected,
+.gf-list-item--selected:hover:not(:disabled) {
+  background: var(--surface-selected);
+  box-shadow: inset 2px 0 0 0 var(--border-accent);
+}
+
+.gf-list-item-code {
+  flex: 0 0 auto;
+  /* Wide enough for the longest sheet number, so titles start in one column. */
+  min-width: 4.5em;
+  font: var(--type-data-sm);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+.gf-list-item--selected .gf-list-item-code {
+  color: var(--text-accent);
+}
+
+.gf-list-item-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.gf-list-item--selected .gf-list-item-title {
+  font: var(--type-body-strong);
+}
+
+.gf-list-item-meta {
+  flex: 0 0 auto;
+  font: var(--type-data-sm);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-tertiary);
+}
+
 /* ---------- IconButton ---------- */
 .gf-iconbtn {
   display: inline-flex;

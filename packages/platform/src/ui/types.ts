@@ -8,6 +8,7 @@ export type IconName =
   | "check"
   | "cloud-off"
   | "hand"
+  | "layers"
   | "maximize"
   | "message-square"
   | "minus"
@@ -97,6 +98,15 @@ export interface PanelHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "cla
   meta?: string;
   actions?: ReactNode;
   children?: ReactNode;
+}
+
+export interface ListItemProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "title" | "aria-current"> {
+  code?: string;
+  title: string;
+  meta?: string;
+  /* The item currently shown, rendered as aria-current. */
+  selected?: boolean;
 }
 
 export type BadgeTone = "neutral" | "accent" | "success" | "error" | "sync";

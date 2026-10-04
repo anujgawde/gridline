@@ -9,6 +9,7 @@ export type {
   IconName,
   IconProps,
   IconSize,
+  ListItemProps,
   PanelHeaderProps,
   PanelProps,
   PanelSide,
@@ -24,4 +25,5 @@ export { Icon } from "./icon.js";
 export { Button, IconButton } from "./button.js";
 export { Toolbar, ToolbarSeparator, ToolbarSpacer } from "./toolbar.js";
 export { Panel, PanelHeader } from "./panel.js";
+export { ListItem } from "./list-item.js";
 export { Badge, RevisionBadge } from "./badge.js";
