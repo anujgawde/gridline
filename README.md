@@ -1,6 +1,10 @@
-# Gridline
+<h1 align="center">Gridline</h1>
 
-A drawing-set workspace for construction teams in the field.
+<p align="center">A drawing-set workspace for construction teams in the field.</p>
+
+<p align="center">
+  <img src="assets/gridline.gif" alt="Gridline demo" width="800" />
+</p>
 
 A construction project issues 1,500–2,000 large-format drawing sheets. On site, a superintendent needs to open the current revision of a sheet, see what changed since they last looked, and mark it up. They usually work on a tablet, often with a poor connection.
 
