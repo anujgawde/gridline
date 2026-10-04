@@ -104,6 +104,13 @@ export function VirtualGrid({
     );
   }, [layout]);
 
+  /* A filter change is a different list, and an offset into the old one means
+     nothing in it. Ahead of the effect below, so the first range drawn for the
+     new list is read from the top. */
+  useLayoutEffect(() => {
+    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
+  }, [groups]);
+
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;

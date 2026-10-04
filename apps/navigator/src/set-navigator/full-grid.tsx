@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import { markGridShown } from "./grid-shown";
 import { SectionLabel, SheetCard } from "./sheet-card";
@@ -9,10 +9,17 @@ import type { DisciplineGroup } from "./types";
 /* No thumbnails: this grid is the baseline as it was measured, and it renders
    no thumbnail provider, so its cards keep their empty boxes. */
 export function FullGrid({ groups, count }: { groups: DisciplineGroup[]; count: number; baseUrl: string }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
   useEffect(markGridShown, []);
 
+  /* Back to the top on a filter change, as the virtual grid does. */
+  useLayoutEffect(() => {
+    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
+  }, [groups]);
+
   return (
-    <div className="sheet-grid sheet-grid-full" data-sheet-count={count}>
+    <div ref={scrollerRef} className="sheet-grid sheet-grid-full" data-sheet-count={count}>
       {groups.map((group) => (
         <section key={group.discipline} className="sheet-grid-section">
           <h3 className="sheet-grid-section-heading">

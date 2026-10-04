@@ -20,3 +20,17 @@ export function markGridShown() {
     });
   });
 }
+
+const FILTER_APPLIED = "gridline:filter-applied";
+
+/* From a filter toggle's input event to the regrouped grid on screen, ended
+   the same way as the grid-shown span. `start` is the event's own timestamp,
+   so time the input waited for the main thread is in it. One measure per
+   toggle, read by the perf spec as `gridline:filter-applied`. */
+export function measureFilterApplied(start: number) {
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      performance.measure(FILTER_APPLIED, { start });
+    });
+  });
+}

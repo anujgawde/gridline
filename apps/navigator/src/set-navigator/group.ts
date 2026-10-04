@@ -30,3 +30,13 @@ export function groupByDiscipline(sheets: SheetIndexEntry[]): DisciplineGroup[] 
   }
   return [...groups.values()];
 }
+
+/* The groups whose discipline is not hidden, as the same objects. Filtering
+   happens on whole groups, so a section is either shown complete or not at
+   all, and its heading count stays the count of the discipline. */
+export function filterGroups(
+  groups: DisciplineGroup[],
+  hidden: ReadonlySet<string>,
+): DisciplineGroup[] {
+  return hidden.size === 0 ? groups : groups.filter((group) => !hidden.has(group.discipline));
+}
