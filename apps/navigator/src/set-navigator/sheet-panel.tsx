@@ -11,18 +11,34 @@ import { VirtualGrid } from "./virtual-grid";
 /* The set as a list beside the drawing. The same virtual grid as the
    full-screen view, one row per sheet.
 
-   The open sheet comes from `sheet:loaded`, published by the viewer once a
-   sheet is on screen, so the mark follows what is shown rather than what was
-   asked for. If the bus were bundled twice nothing would ever be marked, with
-   no error anywhere, so this doubles as the check that it is one instance. */
+   The mark follows the sheet last asked for (`sheet:open`), and then the one
+   the viewer reports on screen (`sheet:loaded`). Following only the second
+   froze the list while stepping quickly: the viewer abandons a sheet still
+   loading when the next is asked for and reports only one that paints, so
+   nothing was reported until the stepping stopped, while the address moved
+   with every press. A sheet opened at startup arrives by `sheet:loaded`
+   alone. If the bus were bundled twice nothing would ever be marked, with no
+   error anywhere, so this doubles as the check that it is one instance. */
 export function SheetPanel() {
   const load = useSheetIndex();
   const [openSheetId, setOpenSheetId] = useState<string | null>(null);
 
-  useEffect(
-    () => bus.subscribe("sheet:loaded", ({ sheetId }) => setOpenSheetId(sheetId)),
-    [],
-  );
+  /* The sheet last asked for, by anyone. Stepping counts from this rather
+     than from rendered state, so a second press arriving before React has
+     caught up with the first still moves two sheets. */
+  const requested = useRef<string | null>(null);
+
+  useEffect(() => {
+    const offOpen = bus.subscribe("sheet:open", ({ sheetId }) => {
+      requested.current = sheetId;
+      setOpenSheetId(sheetId);
+    });
+    const offLoaded = bus.subscribe("sheet:loaded", ({ sheetId }) => setOpenSheetId(sheetId));
+    return () => {
+      offOpen();
+      offLoaded();
+    };
+  }, []);
 
   const groups = useMemo(
     () => (load.state === "ready" ? groupByDiscipline(load.sheets) : []),
@@ -31,12 +47,6 @@ export function SheetPanel() {
 
   /* The set in the order the list shows it, for stepping through. */
   const order = useMemo(() => groups.flatMap((group) => group.sheets), [groups]);
-
-  /* The sheet last asked for, by anyone. Stepping counts from this rather
-     than from the sheet on screen, so pressing twice before the first has
-     painted moves two sheets, not one twice. */
-  const requested = useRef<string | null>(null);
-  useEffect(() => bus.subscribe("sheet:open", ({ sheetId }) => (requested.current = sheetId)), []);
 
   /* Shift+Up and Shift+Down open the previous and next sheet from anywhere on
      the page, with no focus needed — the drawing keeps the plain arrows. They
