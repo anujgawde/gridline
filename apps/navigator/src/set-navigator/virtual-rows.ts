@@ -76,3 +76,58 @@ function firstIndex(rows: GridRow[], test: (row: GridRow) => boolean): number {
   }
   return lo;
 }
+
+/* The sheet a navigation key moves to from `sheetId`, with the index of the
+   row holding it, or null when the key moves nowhere.
+
+   Left and Right stay within a row, and Up and Down keep the column, landing
+   on the last card of a shorter row — so a section's ragged last row is never
+   skipped. Headings are passed over. Home and End go to the first and last
+   sheet. One column makes this a list: Left and Right do nothing there. */
+export function moveFrom(
+  rows: GridRow[],
+  sheetId: string,
+  key: string,
+): { sheetId: string; rowIndex: number } | null {
+  const cardRows: number[] = [];
+  let at = -1;
+  let column = -1;
+  rows.forEach((row, index) => {
+    if (row.kind !== "cards") return;
+    const found = row.sheets.findIndex((sheet) => sheet.sheetId === sheetId);
+    if (found !== -1) {
+      at = cardRows.length;
+      column = found;
+    }
+    cardRows.push(index);
+  });
+  if (at === -1) return null;
+
+  const pick = (position: number, col: number) => {
+    const rowIndex = cardRows[position];
+    if (rowIndex === undefined) return null;
+    const row = rows[rowIndex]!;
+    if (row.kind !== "cards") return null;
+    const sheet = row.sheets[Math.min(col, row.sheets.length - 1)];
+    return sheet ? { sheetId: sheet.sheetId, rowIndex } : null;
+  };
+  const here = rows[cardRows[at]!]!;
+  const width = here.kind === "cards" ? here.sheets.length : 0;
+
+  switch (key) {
+    case "ArrowLeft":
+      return column > 0 ? pick(at, column - 1) : null;
+    case "ArrowRight":
+      return column < width - 1 ? pick(at, column + 1) : null;
+    case "ArrowUp":
+      return pick(at - 1, column);
+    case "ArrowDown":
+      return pick(at + 1, column);
+    case "Home":
+      return pick(0, 0);
+    case "End":
+      return pick(cardRows.length - 1, Number.MAX_SAFE_INTEGER);
+    default:
+      return null;
+  }
+}

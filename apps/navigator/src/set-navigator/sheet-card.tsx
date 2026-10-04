@@ -1,6 +1,7 @@
 import { useRef } from "react";
 
 import type { SheetIndexEntry } from "../sources";
+import { openSheet } from "./open-sheet";
 import type { DisciplineGroup } from "./types";
 import { useThumbnail } from "./use-thumbnail";
 
@@ -9,20 +10,31 @@ import { useThumbnail } from "./use-thumbnail";
 
    `thumbnail={false}` leaves the box empty even inside a grid that draws
    thumbnails; the virtual grid's measuring probe uses it, so measuring a card
-   never fetches an image. */
+   never fetches an image.
+
+   The whole card is the button that opens its sheet, so the target is the card
+   rather than a control inside it. */
 export function SheetCard({
   sheet,
   thumbnail = true,
+  tabIndex,
 }: {
   sheet: SheetIndexEntry;
   thumbnail?: boolean;
+  tabIndex?: number;
 }) {
-  const box = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLSpanElement>(null);
   const image = useThumbnail(sheet.sheetId, box);
 
   return (
-    <article className="sheet-card">
-      <div
+    <button
+      type="button"
+      className="sheet-card"
+      data-sheet-id={sheet.sheetId}
+      tabIndex={tabIndex}
+      onClick={() => openSheet(sheet.sheetId)}
+    >
+      <span
         ref={thumbnail ? box : undefined}
         className="sheet-card-thumb"
         aria-hidden="true"
@@ -31,12 +43,12 @@ export function SheetCard({
         {image.status === "loaded" && (
           <img className="sheet-card-image" src={image.url} alt="" decoding="async" draggable={false} />
         )}
-      </div>
-      <div className="sheet-card-body">
+      </span>
+      <span className="sheet-card-body">
         <span className="sheet-card-number">{sheet.sheetId}</span>
         <span className="sheet-card-title">{sheet.title}</span>
-      </div>
-    </article>
+      </span>
+    </button>
   );
 }
 

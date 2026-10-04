@@ -1,23 +1,54 @@
-.set-navigator {
+/* The panel beside a drawing. It fills the slot the shell gives it, and the
+   slot draws the edge, so the panel's own border is dropped. One column. */
+[data-sheet-panel] {
+  --sheet-grid-columns: minmax(0, 1fr);
+
+  width: 100%;
+  height: 100%;
+  border-right: none;
+}
+
+.sheet-panel-keys {
   display: flex;
   flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  font: var(--type-caption);
+  color: var(--text-tertiary);
+}
+
+.sheet-panel-keys > div {
+  display: flex;
+  align-items: center;
   gap: var(--space-2);
-  height: 100%;
-  padding: var(--space-3);
-  background: var(--surface-panel);
-  color: var(--text-primary);
 }
 
-.set-navigator-heading {
-  margin: 0;
-  font: var(--type-title);
+.sheet-panel-keys dt {
+  display: flex;
+  gap: var(--space-half);
 }
 
-.set-navigator-open {
+.sheet-panel-keys dd {
   margin: 0;
-  font: var(--type-data);
-  font-variant-numeric: var(--numeric-tabular);
+}
+
+.sheet-panel-keys kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 var(--space-1);
+  font: var(--type-data-sm);
+  text-align: center;
   color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border: var(--border-w) solid var(--border-subtle);
+  border-radius: var(--radius-1);
+}
+
+/* The list is the panel's scroller; the panel body only holds it. */
+[data-sheet-panel] .gf-panel-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .sheet-grid-status {
@@ -138,6 +169,10 @@
   z-index: 2;
 }
 
+.sheet-grid-canvas > .sheet-grid-under-pin {
+  opacity: 0;
+}
+
 .sheet-grid > .sheet-grid-pinned {
   margin-left: 0;
   margin-right: 0;
@@ -184,14 +219,50 @@
   color: var(--text-secondary);
 }
 
+/* List variant: rows touch, edge to edge, and headings are the panel's
+   compact section bar rather than the grid's. */
+.sheet-list > .sheet-grid-canvas {
+  margin: 0;
+}
+
+.sheet-list .sheet-grid-row {
+  gap: 0;
+}
+
+.sheet-list .sheet-grid-section-heading {
+  justify-content: space-between;
+  margin: 0;
+  padding: 0 var(--space-3);
+}
+
+.sheet-list .sheet-grid-section-name {
+  color: var(--text-tertiary);
+}
+
+.sheet-list .sheet-grid-section-count {
+  color: var(--text-tertiary);
+}
+
+/* A button, so it is reset to look like the card it was: no UA padding, font
+   or centring. */
 .sheet-card {
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
+  padding: 0;
   overflow: hidden;
+  font: inherit;
+  text-align: left;
+  color: inherit;
   background: var(--surface-panel);
   border: var(--border-w) solid var(--border-hairline);
   border-radius: var(--radius-2);
+  cursor: pointer;
+}
+
+.sheet-card:hover {
+  border-color: var(--border-strong);
 }
 
 /* ARCH E1 is 42 x 30 in, landscape, so the box matches the sheet's shape. */
@@ -199,6 +270,7 @@
    from a card measured without an image, so nothing that arrives later may
    change a card's height — an image in flow did, by its own square shape. */
 .sheet-card-thumb {
+  display: block;
   position: relative;
   aspect-ratio: 7 / 5;
   overflow: hidden;

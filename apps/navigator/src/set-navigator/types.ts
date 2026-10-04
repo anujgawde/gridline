@@ -18,6 +18,10 @@ export interface DisciplineGroup {
    is kept as the measured baseline. */
 export type GridMode = "virtual" | "full";
 
+/* How the virtual grid draws a sheet: `cards` with thumbnails, as many
+   columns as fit, or `list`, one row per sheet beside a drawing. */
+export type GridVariant = "cards" | "list";
+
 /* Sizes the row layout is computed from, all in CSS pixels. Measured from the
    rendered grid rather than assumed, since a card's height follows its width. */
 export interface RowMetrics {

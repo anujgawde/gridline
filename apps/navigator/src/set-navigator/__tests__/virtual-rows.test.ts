@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DisciplineGroup, RowMetrics } from "../types";
-import { layoutRows, sectionAt, visibleRows } from "../virtual-rows";
+import { layoutRows, moveFrom, sectionAt, visibleRows } from "../virtual-rows";
 
 const group = (discipline: string, count: number): DisciplineGroup => ({
   discipline,
@@ -94,5 +94,48 @@ describe("sectionAt", () => {
   it("falls back to the first section for an empty layout or a negative offset", () => {
     expect(sectionAt([], 50)).toBe(0);
     expect(sectionAt(rows, -10)).toBe(0);
+  });
+});
+
+describe("moveFrom", () => {
+  // Rows: h, [A-100 A-101 A-102], [A-103 A-104 A-105], [A-106], h, [S-100 S-101]
+  const { rows } = layoutRows([group("A", 7), group("S", 2)], metrics);
+  const to = (from: string, key: string) => moveFrom(rows, from, key)?.sheetId ?? null;
+
+  it("moves within a row and stops at its ends", () => {
+    expect(to("A-101", "ArrowRight")).toBe("A-102");
+    expect(to("A-101", "ArrowLeft")).toBe("A-100");
+    expect(to("A-102", "ArrowRight")).toBeNull();
+    expect(to("A-100", "ArrowLeft")).toBeNull();
+  });
+
+  it("keeps the column up and down, landing on the last card of a shorter row", () => {
+    expect(to("A-101", "ArrowDown")).toBe("A-104");
+    expect(to("A-105", "ArrowDown")).toBe("A-106");
+    expect(to("A-106", "ArrowUp")).toBe("A-103");
+  });
+
+  it("passes over headings into the next section", () => {
+    expect(to("A-106", "ArrowDown")).toBe("S-100");
+    expect(to("S-101", "ArrowUp")).toBe("A-106");
+  });
+
+  it("goes nowhere past the first and last rows", () => {
+    expect(to("A-101", "ArrowUp")).toBeNull();
+    expect(to("S-100", "ArrowDown")).toBeNull();
+  });
+
+  it("goes to the first and last sheet on Home and End", () => {
+    expect(to("A-104", "Home")).toBe("A-100");
+    expect(to("A-104", "End")).toBe("S-101");
+  });
+
+  it("returns the row the sheet is in, for scrolling it into view", () => {
+    expect(moveFrom(rows, "A-106", "ArrowDown")).toEqual({ sheetId: "S-100", rowIndex: 5 });
+  });
+
+  it("ignores other keys and sheets not in the layout", () => {
+    expect(to("A-101", "Enter")).toBeNull();
+    expect(to("Z-999", "ArrowDown")).toBeNull();
   });
 });

@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { loadSheetIndex, loadSheetSource } from "../sources";
-import type { SheetIndexEntry } from "../sources";
 import { DisciplineFilter } from "./discipline-filter";
 import { FullGrid } from "./full-grid";
 import { gridMode } from "./grid-mode";
-import { markIndexLoaded, measureFilterApplied } from "./grid-shown";
+import { measureFilterApplied } from "./grid-shown";
 import { filterGroups, groupByDiscipline } from "./group";
+import { useSheetIndex } from "./use-sheet-index";
 import { VirtualGrid } from "./virtual-grid";
-
-type Load =
-  | { state: "loading" }
-  | { state: "failed" }
-  | { state: "ready"; sheets: SheetIndexEntry[]; baseUrl: string };
 
 const NOTHING_HIDDEN: ReadonlySet<string> = new Set();
 
@@ -23,31 +17,12 @@ const NOTHING_HIDDEN: ReadonlySet<string> = new Set();
    whatever it is given, so filtering costs a new row layout and the rows now
    on screen, never a card per sheet. */
 export function SheetGrid() {
-  const [load, setLoad] = useState<Load>({ state: "loading" });
+  const load = useSheetIndex();
   const [mode] = useState(gridMode);
   const [hidden, setHidden] = useState(NOTHING_HIDDEN);
   /* The input timestamp of the toggle being applied, or null when the last
      change came from anywhere else. */
   const toggledAt = useRef<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const source = await loadSheetSource();
-      const sheets = source ? await loadSheetIndex(source) : null;
-      if (sheets) markIndexLoaded();
-      if (!cancelled) {
-        setLoad(
-          source && sheets
-            ? { state: "ready", sheets, baseUrl: source.baseUrl }
-            : { state: "failed" },
-        );
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const groups = useMemo(
     () => (load.state === "ready" ? groupByDiscipline(load.sheets) : []),
