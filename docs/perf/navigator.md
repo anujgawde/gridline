@@ -1,10 +1,11 @@
 # Navigator — the sheet grid and its thumbnails
 
-What it costs to scroll the whole 1,500-sheet set, what it became, and what
-thumbnails add to it.
+What it costs to scroll the whole 1,500-sheet set, what it became, what
+thumbnails add to it, and what a discipline filter costs.
 
-Every figure here comes from `tests/perf/navigator.spec.ts` or
-`tests/perf/thumbnails.spec.ts`, run on one machine.
+Every figure here comes from `tests/perf/navigator.spec.ts`,
+`tests/perf/thumbnails.spec.ts` or `tests/perf/filters.spec.ts`, run on one
+machine.
 The spec is the source of truth: no number enters this file that did not come
 out of a run anyone can repeat.
 
@@ -159,6 +160,49 @@ requests in flight, each waits a full round trip before its first byte.
 **The navigator needs no cache of its own.** Returning to cards already seen
 refills the screen in 161 ms, from the browser's HTTP cache.
 
+## Filters
+
+One toggle per discipline hides or shows its sheets. A filter hands the grid
+fewer discipline groups and nothing else, so it should cost a new row layout
+and the rows now on screen — not a card per sheet. The spec checks that.
+
+**Filter applied** runs from the click event's own timestamp to the frame
+showing the regrouped grid painted, so input delay is in it. Each run hides
+and re-shows every discipline in turn, fourteen toggles, and every toggle is a
+sample. **Grid shown** from the same runs is beside it for scale: a filter
+costing more than the grid's first draw would be doing more than handing it
+fewer rows. Thumbnails are off.
+
+The full grid is the control. There a filter re-renders every card left in
+the set, so a spec that read the same on both could not see what a filter
+costs.
+
+Both columns were taken in one session, one run after the other; 42 toggles
+each.
+
+| metric | virtual grid | full grid (control) |
+|---|---|---|
+| grid shown, for scale | 66 ms (66–85) | 227 ms (226–261) |
+| filter applied, median | 17 ms | 69 ms |
+| filter applied, p95 | 56 ms | 119 ms |
+| filter applied, worst | 79 ms | 150 ms |
+| longest task while toggling | 0 ms | 83 ms (82–98) |
+
+### What a filter costs
+
+**About one frame.** A toggle on the virtual grid reads a median of 17 ms,
+which is one display frame at 60 Hz — the span ends after the next paint, so
+it cannot read much lower. No toggle produced a long task. The full grid takes
+four times as long and blocks the main thread for over 80 ms, which is the
+cost the virtual grid avoids by drawing only the rows on screen.
+
+**The first toggle of every run is the slowest**, on both grids: 56–79 ms on
+the virtual grid, against 16–20 ms for the other thirteen. Those three are
+the whole of the p95 and the worst. The spec always hides the same discipline
+first, so it cannot tell whether that is the page's first interaction or
+something about that discipline; a gate on the worst toggle has to allow for
+it either way.
+
 ## Reproduce
 
 ```sh
@@ -168,9 +212,12 @@ PERF_GRID=full pnpm exec playwright test navigator     # before: every card
 PERF_JANK=1 PERF_RUNS=1 pnpm exec playwright test navigator   # the control
 pnpm exec playwright test thumbnails                   # thumbnails on
 PERF_THUMBS=0 pnpm exec playwright test thumbnails     # thumbnails off
+pnpm exec playwright test filters                      # filters, virtual grid
+PERF_GRID=full pnpm exec playwright test filters       # filters, the control
 ```
 
 Each grid writes its own file, `perf-results/navigator-scroll-virtual.json` and
 `perf-results/navigator-scroll-full.json`; a control run adds `-jank` to the
 name. Thumbnails write `perf-results/navigator-thumbnails-on.json` and
-`-off.json`.
+`-off.json`; filters write `perf-results/navigator-filters-virtual.json` and
+`-full.json`.

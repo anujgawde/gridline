@@ -183,7 +183,7 @@ Pre-alpha.
 **Not built yet**
 
 - Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
-- The navigator's discipline filters, and opening a sheet from its card. `?view=sheets` lists all 1,500 sheets in a virtualised grid with thumbnails
+- Opening a sheet from its navigator card. `?view=sheets` lists all 1,500 sheets in a virtualised grid with thumbnails and discipline filters
 - The compare remote
 - Markup
 - Per-app deployment pipelines
