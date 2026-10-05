@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 import { bus } from "@gridline/platform/bus";
-import { IconButton, Toolbar } from "@gridline/platform/ui";
+import { Button, Icon, IconButton, Toolbar } from "@gridline/platform/ui";
 
 import { RemoteBoundary } from "./remote-boundary";
 import { SheetNav } from "./sheet-nav";
@@ -151,18 +151,34 @@ export function App() {
     return () => window.removeEventListener("popstate", restore);
   }, []);
 
-  /* Compare says it is finished; the shell decides what follows, which is the
-     drawing of the sheet that was being compared. A new history entry, so Back
-     returns to the comparison. */
+  /* Leaving a comparison shows the drawing of the sheet that was being
+     compared. A new history entry, so Back returns to the comparison. */
+  const leaveCompare = (closed: string) => {
+    window.history.pushState(null, "", addressFor("drawing", closed));
+    setSheetId(closed);
+    setView("drawing");
+  };
+
+  /* Compare can also say it is finished; the shell still decides what
+     follows. */
   useEffect(
     () =>
-      bus.subscribe("compare:closed", ({ sheetId: closed }) => {
-        window.history.pushState(null, "", addressFor("drawing", closed));
-        setSheetId(closed);
-        setView("drawing");
-      }),
+      bus.subscribe("compare:closed", ({ sheetId: closed }) =>
+        leaveCompare(closed),
+      ),
     [],
   );
+
+  /* Esc leaves a comparison, as the Exit button's hint says. The shell's key
+     because leaving is the shell's decision. */
+  useEffect(() => {
+    if (view !== "compare") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") leaveCompare(sheetId);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view, sheetId]);
 
   const showView = (next: View) => {
     window.history.pushState(null, "", addressFor(next, sheetId));
@@ -184,7 +200,31 @@ export function App() {
 
         <span className="shell-separator" aria-hidden="true" />
 
-        <span className="shell-set">Tower B — Permit Set</span>
+        {view === "compare" ? (
+          <>
+            <span className="shell-mode">
+              <Icon name="columns-2" size={16} />
+              Compare revisions
+            </span>
+
+            <span className="shell-separator" aria-hidden="true" />
+
+            <span className="shell-sheet">
+              <span className="shell-sheet-number">{sheetId}</span>
+              <span className="shell-set">Tower B — Permit Set</span>
+            </span>
+
+            <span className="shell-spacer" />
+
+            {/* The bar is the shell's, so leaving is too: what is on screen
+                is the shell's decision, not Compare's. */}
+            <Button variant="secondary" size="sm" icon="x" onClick={() => leaveCompare(sheetId)}>
+              Exit compare <span className="shell-key-hint">Esc</span>
+            </Button>
+          </>
+        ) : (
+          <span className="shell-set">Tower B — Permit Set</span>
+        )}
 
         {/* The sheet controls belong to the drawing. On the sheet index a sheet
             is opened by choosing it there, and a control that silently
@@ -222,6 +262,16 @@ export function App() {
             label="Sheet index"
             active={view === "sheets"}
             onClick={() => showView(view === "sheets" ? "drawing" : "sheets")}
+          />
+          {/* Opening a comparison needs two revisions, which the shell cannot
+              know; the navigator's superseded badge asks for one. Here the
+              item shows that a comparison is open, and closes it. */}
+          <IconButton
+            icon="columns-2"
+            label="Compare revisions"
+            active={view === "compare"}
+            disabled={view !== "compare"}
+            onClick={() => leaveCompare(sheetId)}
           />
         </Toolbar>
 
