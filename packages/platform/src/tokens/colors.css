@@ -23,6 +23,9 @@
      is magenta. One value for both themes: they mark linework on white paper,
      not chrome. --- */
   --compare-from:#0B7285; --compare-to:#B01E80;
+  /* Linework in both: FROM multiplied by TO, which is what an onion skin
+     draws where the two overlap, so the key shows the canvas's own colour. */
+  --compare-both:#070D42;
 
   /* --- Error --- */
   --red-300:#FFB3AE; --red-400:#FF7B72; --red-500:#E5484D; --red-600:#C42A2F; --red-700:#8F1C21;
