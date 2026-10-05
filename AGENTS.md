@@ -16,10 +16,13 @@ Pre-alpha. The workspace packages:
   the tokens and is the Module Federation host. Loads the viewer's sheet surface,
   the navigator and compare at runtime, and shows active-sheet state published
   on the bus. Owns which of them is on screen: the rail's "Sheet index" opens
-  the full-screen grid, any `sheet:open` or `compare:closed` switches back to
+  the full-screen grid, any `compare:request` opens compare (from whoever
+  publishes it), any `sheet:open` or `compare:closed` switches back to
   the drawing, and the address follows, so Back returns to where you were.
   In compare, the top bar carries the compare title and Exit (also Esc), and
-  the rail's "Compare revisions" item is active: leaving is the shell's call. The sheet stepper in the top
+  the rail's "Compare revisions" item is active: leaving is the shell's call.
+  Rail items are destinations, not toggles: pressing the one you are on does
+  nothing. The sheet stepper in the top
   bar shows only with the drawing.
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
@@ -35,13 +38,16 @@ Pre-alpha. The workspace packages:
   publishes `sheet:open`. On the full-screen grid, arrows and Home/End move
   between sheets as soon as it loads, and Enter opens one; beside a drawing,
   Shift+Up and Shift+Down open the previous and next sheet from anywhere on
-  the page.
+  the page. A reissued sheet is marked superseded (stripe, ring, badge); its
+  badge is a button that publishes `compare:request` for REV 1 against the
+  latest.
 - **`apps/compare`** — `@gridline/compare`. The third remote. Exposes
   `./SheetCompare`, given a sheet and two revisions as props. The shell shows
   it at `?view=compare&sheet=A-131&from=1&to=3`, in the body beside the rail.
   Owns everything below the shell's top bar: the FROM → TO revision bar, a
   header strip per pane with its zoom, the lock pill over the seam, and the
-  bottom zoom bar. It can also leave by publishing `compare:closed`, after
+  bottom zoom bar. The FROM and TO chips are pickers once the sheet index says
+  how many revisions exist; choosing publishes `compare:request` again. It can also leave by publishing `compare:closed`, after
   which the shell shows that sheet's drawing. Runs standalone on port 4103.
   Draws the two revisions side by side from their tile pyramids. The panes
   are locked by default, so a drag or wheel in either moves both; "Panes

@@ -33,7 +33,7 @@ export function SheetCompare({ sheetId, from, to }: SheetCompareProps) {
 
   return (
     <div className="compare">
-      <RevisionBar from={from} to={to} />
+      <RevisionBar sheetId={sheetId} from={from} to={to} />
       <div className="compare-body" data-locked={locked}>
         {pyramids.status === "ready" ? (
           <>

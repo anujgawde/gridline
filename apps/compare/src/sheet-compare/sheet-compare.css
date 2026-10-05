@@ -48,6 +48,28 @@
   font-variant-numeric: var(--numeric-tabular);
 }
 
+/* A picker: the select covers the chip, invisible, so the whole chip opens
+   it. The ring goes on the chip, where the eye is. */
+.compare-rev-chip {
+  position: relative;
+  cursor: pointer;
+}
+.compare-rev-chip:hover {
+  border-color: var(--border-strong);
+}
+.compare-rev-chip:has(.compare-rev-select:focus-visible) {
+  outline: var(--focus-w) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.compare-rev-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font: var(--type-data);
+}
+
 .compare-swatch {
   flex: 0 0 auto;
   width: var(--space-2);
