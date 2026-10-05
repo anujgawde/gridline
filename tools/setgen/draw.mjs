@@ -245,6 +245,7 @@ function rooms(page, ctx, rng) {
   };
 
   const cells = subdivide(plate, ctx.grid.depth, rng);
+  const edited = assignEdits(ctx.edits, cells);
   const { fonts } = ctx;
 
   cells.forEach((cell, i) => {
@@ -267,30 +268,134 @@ function rooms(page, ctx, rng) {
       borderColor: INK,
     });
 
-    // Roughly a third of rooms are hatched — a floor finish or a shaft.
-    if (rng() < 0.34) hatch(page, cell, intBetween(rng, 7, 12));
+    // Every draw from the sheet's generator happens here, in the same order
+    // whether or not the room is revised. A revision changes what is drawn,
+    // never how much randomness was consumed, so every other room on the sheet
+    // comes out identical.
+    const room = {
+      // Roughly a third of rooms are hatched — a floor finish or a shaft.
+      hatched: rng() < 0.34,
+      spacing: 0,
+      name: "",
+      door: false,
+      doorAt: 0,
+      partition: null,
+    };
+    if (room.hatched) room.spacing = intBetween(rng, 7, 12);
+    room.name = pick(rng, ROOM_NAMES);
+    // Door swings on most rooms: the leaf, plus a quarter arc for the swing.
+    room.door = rng() < 0.7 && cell.width > 100 && cell.height > 80;
+    if (room.door) room.doorAt = floatBetween(rng, 0.25, 0.65);
 
-    const name = pick(rng, ROOM_NAMES);
+    for (const edit of edited.get(i) ?? []) applyEdit(room, edit);
+
+    if (room.hatched) hatch(page, cell, room.spacing);
+
     const number = `${ctx.level}${String(i + 1).padStart(2, "0")}`;
     if (cell.width > 120 && cell.height > 60) {
-      const nameWidth = fonts.bold.widthOfTextAtSize(name, 11);
+      const nameWidth = fonts.bold.widthOfTextAtSize(room.name, 11);
       const cx = cell.x + cell.width / 2;
       const cy = cell.y + cell.height / 2;
-      page.drawText(name, { x: cx - nameWidth / 2, y: cy + 4, size: 11, font: fonts.bold, color: INK });
+      page.drawText(room.name, { x: cx - nameWidth / 2, y: cy + 4, size: 11, font: fonts.bold, color: INK });
       const numWidth = fonts.regular.widthOfTextAtSize(number, 9);
       page.drawText(number, { x: cx - numWidth / 2, y: cy - 12, size: 9, font: fonts.regular, color: LIGHT });
     }
 
-    // Door swings on most rooms: the leaf, plus a quarter arc for the swing.
-    if (rng() < 0.7 && cell.width > 100 && cell.height > 80) {
+    if (room.door) {
       const swing = Math.min(32, cell.width / 4, cell.height / 3);
-      const dx = cell.x + floatBetween(rng, 0.25, 0.65) * cell.width;
+      const dx = cell.x + room.doorAt * cell.width;
       line(page, dx, cell.y, dx, cell.y + swing, THIN, INK);
       quarterArc(page, dx, cell.y, swing);
     }
+
+    if (room.partition !== null) partition(page, cell, room.partition);
   });
 
   return cells;
+}
+
+// --- revisions -------------------------------------------------------------
+
+// Rooms large enough that every kind of edit shows: the name is drawn and a
+// door fits. An edit to a room too small to label would change nothing visible.
+function editable(cell) {
+  return cell.width > 120 && cell.height > 80;
+}
+
+// Turns each edit's fractional `room` into a room on this sheet, one edit per
+// room. Two edits landing on the same room could cancel out — a hatch toggled
+// twice is no change at all — so a collision moves on to the next free room.
+function assignEdits(edits, cells) {
+  const byRoom = new Map();
+  if (edits.length === 0) return byRoom;
+
+  let candidates = cells.flatMap((cell, i) => (editable(cell) ? [i] : []));
+  if (candidates.length === 0) candidates = cells.map((_, i) => i);
+
+  for (const edit of edits) {
+    const first = Math.floor(edit.room * candidates.length);
+    // More edits than rooms: stack on the room the edit first chose.
+    let index = candidates[first];
+    for (let step = 0; step < candidates.length; step += 1) {
+      const next = candidates[(first + step) % candidates.length];
+      if (!byRoom.has(next)) {
+        index = next;
+        break;
+      }
+    }
+    byRoom.set(index, [...(byRoom.get(index) ?? []), edit]);
+  }
+  return byRoom;
+}
+
+function applyEdit(room, edit) {
+  switch (edit.kind) {
+    case "hatch":
+      room.hatched = !room.hatched;
+      if (room.hatched && room.spacing === 0) {
+        room.spacing = 7 + Math.floor(edit.value * 6);
+      }
+      break;
+    case "rename": {
+      // An offset of at least one, so the new name is never the old one.
+      const at = ROOM_NAMES.indexOf(room.name);
+      const step = 1 + Math.floor(edit.value * (ROOM_NAMES.length - 1));
+      room.name = ROOM_NAMES[(at + step) % ROOM_NAMES.length];
+      break;
+    }
+    case "door":
+      // A door that exists moves by a fifth of the wall; one that does not is
+      // added. Either way the change is a visible distance, not a nudge.
+      if (room.door) {
+        room.doorAt += room.doorAt < 0.45 ? 0.2 : -0.2;
+      } else {
+        room.door = true;
+        room.doorAt = 0.25 + edit.value * 0.4;
+      }
+      break;
+    case "partition":
+      // Kept clear of the middle third, where the room's name is set.
+      room.partition =
+        edit.at < 0.5 ? 0.2 + edit.at * 0.3 : 0.5 + edit.at * 0.3;
+      break;
+    default:
+      throw new Error(`unknown revision edit ${edit.kind}`);
+  }
+}
+
+// A new wall across the room's shorter span, drawn as the plan draws walls: two
+// lines with a cavity between them.
+function partition(page, cell, at) {
+  const wall = 5;
+  if (cell.width >= cell.height) {
+    const x = cell.x + cell.width * at;
+    line(page, x, cell.y + wall, x, cell.y + cell.height - wall, THIN, INK);
+    line(page, x + wall, cell.y + wall, x + wall, cell.y + cell.height - wall, THIN, INK);
+  } else {
+    const y = cell.y + cell.height * at;
+    line(page, cell.x + wall, y, cell.x + cell.width - wall, y, THIN, INK);
+    line(page, cell.x + wall, y + wall, cell.x + cell.width - wall, y + wall, THIN, INK);
+  }
 }
 
 // Dimension strings along the top and left of the plate — tick marks plus the
@@ -329,10 +434,13 @@ export async function embedFonts(doc) {
   };
 }
 
-export function drawSheet(page, sheet, fonts, rng) {
+// `edits` are the revision's changes, from `revisionEdits`. Revision 1 has
+// none, and draws exactly what it drew before revisions existed.
+export function drawSheet(page, sheet, fonts, rng, edits = []) {
   const ctx = {
     sheet,
     fonts,
+    edits,
     level: intBetween(rng, 1, 9),
     scale: pick(rng, ['1/8" = 1\'-0"', '1/4" = 1\'-0"', '3/16" = 1\'-0"']),
     grid: {

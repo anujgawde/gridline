@@ -37,7 +37,10 @@ Pre-alpha. The workspace packages:
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
-  browser.
+  browser. 51 of those sheets are reissued once or twice, with a few localized
+  edits each, so Compare has differences to find. A reissue is written beside
+  its sheet (`A-101.r2.pdf`, tiles under `A-101/r2/`), so revision 1 keeps its
+  paths and its bytes, and the set checksum is unchanged.
 
 The shell holds no remote addresses. It reads `public/remotes.json` at startup and
 registers remotes at runtime, so the build contains no remote URL.

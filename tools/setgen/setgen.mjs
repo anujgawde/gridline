@@ -19,6 +19,7 @@ import { parseArgs } from "node:util";
 
 import { combineSheets } from "./combine.mjs";
 import { renderSheet } from "./render.mjs";
+import { latestRevision, sheetFile } from "./revisions.mjs";
 import { buildSheetList } from "./sheets.mjs";
 
 const DEFAULTS = { out: "data/sets/v1", count: "1500", seed: "gridline-v1" };
@@ -59,22 +60,31 @@ async function main() {
 
   const started = Date.now();
   const entries = [];
+  // Reissues, kept apart from `entries` so the set checksum still describes
+  // revision 1 alone and stays comparable with every run before revisions.
+  const revisions = [];
+  const latest = new Map();
 
   for (const sheet of sheets) {
-    const bytes = await renderSheet(sheet, values.seed);
-    const file = `sheets/${sheet.sheetId}.pdf`;
-    await writeFile(join(outDir, file), bytes);
+    const last = latestRevision(values.seed, sheet.sheetId);
+    latest.set(sheet.sheetId, last);
 
-    entries.push({
-      sheetId: sheet.sheetId,
-      title: sheet.title,
-      discipline: sheet.discipline,
-      series: sheet.series,
-      revision: sheet.revision,
-      file,
-      bytes: bytes.length,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-    });
+    for (let revision = 1; revision <= last; revision += 1) {
+      const bytes = await renderSheet({ ...sheet, revision }, values.seed);
+      const file = sheetFile(sheet.sheetId, revision);
+      await writeFile(join(outDir, file), bytes);
+
+      (revision === 1 ? entries : revisions).push({
+        sheetId: sheet.sheetId,
+        title: sheet.title,
+        discipline: sheet.discipline,
+        series: sheet.series,
+        revision,
+        file,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
+    }
 
     if (entries.length % 100 === 0) {
       process.stdout.write(`  ${entries.length}/${sheets.length}\n`);
@@ -82,8 +92,10 @@ async function main() {
   }
 
   if (values.only) {
-    for (const entry of entries) {
-      console.log(`${entry.sheetId}  ${entry.bytes} bytes  ${entry.sha256}`);
+    for (const entry of [...entries, ...revisions]) {
+      console.log(
+        `${entry.file}  ${entry.bytes} bytes  ${entry.sha256}`,
+      );
     }
     return;
   }
@@ -99,12 +111,22 @@ async function main() {
     (done, all) => process.stdout.write(`    ${done}/${all}\n`),
   );
   await writeFile(join(outDir, "combined.pdf"), combinedBytes);
+
+  /* The combined document is the set as first issued, so it stays revision 1.
+     The index says which sheets have been reissued since: `revision` appears
+     only on those, and its absence means 1. Carrying it on all 1,500 entries
+     would grow a file every client fetches to describe sixty sheets. */
+  const indexed = index.map((entry) => {
+    const revision = latest.get(entry.sheetId);
+    return revision > 1 ? { ...entry, revision } : entry;
+  });
   await writeFile(
     join(outDir, "sheet-index.json"),
-    `${JSON.stringify({ seed: values.seed, sheets: index }, null, 2)}\n`,
+    `${JSON.stringify({ seed: values.seed, sheets: indexed }, null, 2)}\n`,
   );
 
   const total = entries.reduce((sum, e) => sum + e.bytes, 0);
+  const revisionTotal = revisions.reduce((sum, e) => sum + e.bytes, 0);
 
   // One checksum over every sheet's checksum, taken in sheet-number order so it
   // does not depend on the order the loop wrote them in. Two people comparing
@@ -118,6 +140,15 @@ async function main() {
     )
     .digest("hex");
 
+  const revisionChecksum = createHash("sha256")
+    .update(
+      [...revisions]
+        .sort((a, b) => a.file.localeCompare(b.file))
+        .map((e) => `${e.file} ${e.sha256}`)
+        .join("\n"),
+    )
+    .digest("hex");
+
   await writeFile(
     join(outDir, "manifest.json"),
     `${JSON.stringify(
@@ -126,7 +157,9 @@ async function main() {
         count,
         sheetCount: entries.length,
         setChecksum,
+        revisionChecksum,
         sheets: entries,
+        revisions,
       },
       null,
       2,
@@ -140,7 +173,12 @@ async function main() {
   console.log(
     `combined.pdf  ${index.length} pages, ${(combinedBytes.length / 1024 / 1024).toFixed(1)} MB`,
   );
+  console.log(
+    `${revisions.length} revisions across ${new Set(revisions.map((r) => r.sheetId)).size} sheets, ` +
+      `${(revisionTotal / 1024 / 1024).toFixed(1)} MB`,
+  );
   console.log(`set checksum ${setChecksum}`);
+  console.log(`revision checksum ${revisionChecksum}`);
 }
 
 main().catch((error) => {

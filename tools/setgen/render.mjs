@@ -5,6 +5,7 @@
 import { PDFDocument } from "pdf-lib";
 
 import { drawSheet, embedFonts, PAGE } from "./draw.mjs";
+import { revisionEdits } from "./revisions.mjs";
 import { rngForSheet } from "./rng.mjs";
 
 // A fixed instant for every timestamp pdf-lib would otherwise take from the
@@ -25,7 +26,16 @@ export async function renderSheet(sheet, seed) {
 
   const fonts = await embedFonts(doc);
   const page = doc.addPage([PAGE.width, PAGE.height]);
-  drawSheet(page, sheet, fonts, rngForSheet(seed, sheet.sheetId));
+  /* The sheet's own generator is seeded from its id alone, never its revision,
+     so every revision starts from the same drawing and differs only by its
+     edits. */
+  drawSheet(
+    page,
+    sheet,
+    fonts,
+    rngForSheet(seed, sheet.sheetId),
+    revisionEdits(seed, sheet.sheetId, sheet.revision),
+  );
 
   return doc.save({ useObjectStreams: false });
 }

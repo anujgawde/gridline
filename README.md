@@ -114,6 +114,7 @@ pnpm setgen
 - Each sheet is seeded by its own sheet number. Regenerating one sheet produces the same bytes as the full run.
 - Every timestamp in the PDF output is fixed, so a checksum depends only on content.
 - The output is not committed. To compare two sets, compare the set checksum: one hash over all 1,500 per-sheet hashes, in sheet-number order.
+- 51 sheets are reissued once or twice, each reissue carrying one to three local edits: a new partition, a changed hatch, a renamed room, a moved door. Every other room on the sheet is pixel-identical, so a diff finds the edits and nothing else. Reissues get their own checksum, and the set checksum still describes revision 1 alone.
 
 ## Performance
 
