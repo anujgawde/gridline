@@ -13,11 +13,11 @@ Pre-alpha. The workspace packages:
   primitives can be components; the version comes from the catalog like every
   other copy.
 - **`apps/shell`** — `@gridline/shell`. Rspack + React. Renders the chrome from
-  the tokens and is the Module Federation host. Loads the viewer's sheet surface
-  and the navigator at runtime, and shows active-sheet state published on the
-  bus. Owns which of them is on screen: the rail's "Sheet index" opens the
-  full-screen grid, any `sheet:open` switches back to the drawing, and the
-  address follows, so Back returns to the grid. The sheet stepper in the top
+  the tokens and is the Module Federation host. Loads the viewer's sheet surface,
+  the navigator and compare at runtime, and shows active-sheet state published
+  on the bus. Owns which of them is on screen: the rail's "Sheet index" opens
+  the full-screen grid, any `sheet:open` or `compare:closed` switches back to
+  the drawing, and the address follows, so Back returns to where you were. The sheet stepper in the top
   bar shows only with the drawing.
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
@@ -34,6 +34,12 @@ Pre-alpha. The workspace packages:
   between sheets as soon as it loads, and Enter opens one; beside a drawing,
   Shift+Up and Shift+Down open the previous and next sheet from anywhere on
   the page.
+- **`apps/compare`** — `@gridline/compare`. The third remote. Exposes
+  `./SheetCompare`, given a sheet and two revisions as props. The shell shows
+  it at `?view=compare&sheet=A-131&from=1&to=3`, in the body beside the rail.
+  It owns its own header, and leaves by publishing `compare:closed`, after
+  which the shell shows that sheet's drawing. Runs standalone on port 4103.
+  A skeleton so far: no drawings are compared yet.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -52,8 +58,8 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, the compare remote, and the primitives the navigator
-needs — the set in `platform` today is the one the
+Still to build: a pipeline per app, revision diffing in the compare remote, and the
+primitives the navigator needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 
 ## Commands
@@ -70,13 +76,13 @@ viewer calls, not a full library.
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 4 packages; `test` runs in `navigator`,
+`build` and `typecheck` run in 5 packages; `test` runs in `navigator`,
 `platform`, `setgen`, `tiler` and `viewer`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
 outside any package's `dist/`, and takes about 20 seconds, so it has no business
 in a build graph.
 
-`pnpm dev` serves the shell on 4100, the viewer on 4101 and the navigator on
-4102. Each remote gets its own port, assigned in its `rspack.config.ts`.
+`pnpm dev` serves the shell on 4100, the viewer on 4101, the navigator on
+4102 and compare on 4103. Each remote gets its own port, assigned in its `rspack.config.ts`.
 `pnpm serve` adds the generated sheet set on 4200, served by `@gridline/setgen` —
 a separate origin, because in production drawing data comes from a CDN rather
 than from an app's own origin.

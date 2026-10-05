@@ -38,6 +38,14 @@ export function loadSetNavigator() {
   return loadRemote("navigator/SetNavigator") as Promise<NavigatorSetNavigator>;
 }
 
+export interface CompareSheetCompare {
+  SheetCompare: ComponentType<{ sheetId: string; from: number; to: number }>;
+}
+
+export function loadSheetCompare() {
+  return loadRemote("compare/SheetCompare") as Promise<CompareSheetCompare>;
+}
+
 /* Fetches the lookup and registers whatever it names.
 
    Never throws. A lookup that is missing, unreachable or malformed leaves the

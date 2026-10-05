@@ -5,7 +5,7 @@ import { IconButton, Toolbar } from "@gridline/platform/ui";
 
 import { RemoteBoundary } from "./remote-boundary";
 import { SheetNav } from "./sheet-nav";
-import { loadSetNavigator, loadSheetSurface } from "./remotes";
+import { loadSetNavigator, loadSheetCompare, loadSheetSurface } from "./remotes";
 
 /* loadRemote rather than import(): with no remote declared in the build config,
    the bundler no longer knows this specifier names a remote, so import syntax
@@ -41,12 +41,31 @@ const SetNavigator = lazy(() =>
     }),
 );
 
+const SheetCompare = lazy(() =>
+  loadSheetCompare()
+    .then((m) => ({ default: m.SheetCompare }))
+    .catch((error: unknown) => {
+      console.error('[shell] remote "compare" failed to load', error);
+      return {
+        default: () => (
+          <p className="shell-canvas-message">Compare unavailable</p>
+        ),
+      };
+    }),
+);
+
 interface ActiveSheet {
   sheetId: string;
   revision: number;
 }
 
-type View = "sheets" | "drawing";
+type View = "sheets" | "drawing" | "compare";
+
+/* The two revisions a comparison is between. */
+interface RevisionRange {
+  from: number;
+  to: number;
+}
 
 /* Which sheet the shell asks for, read from `?sheet=`. The set is generated, so
    any sheet number in it is reachable — useful for checking a measurement is not
@@ -56,21 +75,40 @@ function requestedSheet(): string | null {
   return value && /^[A-Z]{1,2}-\d{3}$/.test(value) ? value : null;
 }
 
+/* `?from=1&to=3`, read only for a comparison. Two different revisions, both
+   positive whole numbers, or nothing. */
+function requestedRange(): RevisionRange | null {
+  const params = new URLSearchParams(window.location.search);
+  const from = Number(params.get("from"));
+  const to = Number(params.get("to"));
+  const valid = (n: number) => Number.isInteger(n) && n > 0;
+  return valid(from) && valid(to) && from !== to ? { from, to } : null;
+}
+
 /* `?view=sheets` shows the whole set full-screen instead of a drawing, so a
-   measurement can open it directly. */
+   measurement can open it directly. `?view=compare` needs a revision range as
+   well; without one there is nothing to compare, and the drawing shows. */
 function requestedView(): View {
-  return new URLSearchParams(window.location.search).get("view") === "sheets"
-    ? "sheets"
-    : "drawing";
+  const view = new URLSearchParams(window.location.search).get("view");
+  if (view === "sheets") return "sheets";
+  if (view === "compare" && requestedRange()) return "compare";
+  return "drawing";
 }
 
 /* The address for a view and sheet. Every other parameter is kept: the
    measurement switches (`?thumbs=0`, `?renderer=`, …) have to survive moving
    between views, or a run would change what it measures halfway through. */
-function addressFor(view: View, sheetId: string) {
+function addressFor(view: View, sheetId: string, range?: RevisionRange) {
   const params = new URLSearchParams(window.location.search);
-  if (view === "sheets") params.set("view", "sheets");
-  else params.delete("view");
+  if (view === "drawing") params.delete("view");
+  else params.set("view", view);
+  if (view === "compare" && range) {
+    params.set("from", String(range.from));
+    params.set("to", String(range.to));
+  } else {
+    params.delete("from");
+    params.delete("to");
+  }
   params.set("sheet", sheetId);
   return `${window.location.pathname}?${params}`;
 }
@@ -79,6 +117,7 @@ export function App() {
   const [sheet, setSheet] = useState<ActiveSheet | null>(null);
   const [sheetId, setSheetId] = useState(() => requestedSheet() ?? "A-101");
   const [view, setView] = useState(requestedView);
+  const [range, setRange] = useState(requestedRange);
   /* Read by the bus handler below, which subscribes once. */
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -105,11 +144,25 @@ export function App() {
        a grid opened without one still remembers what the drawing showed. */
     const restore = () => {
       setView(requestedView());
+      setRange(requestedRange());
       setSheetId((current) => requestedSheet() ?? current);
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, []);
+
+  /* Compare says it is finished; the shell decides what follows, which is the
+     drawing of the sheet that was being compared. A new history entry, so Back
+     returns to the comparison. */
+  useEffect(
+    () =>
+      bus.subscribe("compare:closed", ({ sheetId: closed }) => {
+        window.history.pushState(null, "", addressFor("drawing", closed));
+        setSheetId(closed);
+        setView("drawing");
+      }),
+    [],
+  );
 
   const showView = (next: View) => {
     window.history.pushState(null, "", addressFor(next, sheetId));
@@ -172,7 +225,20 @@ export function App() {
           />
         </Toolbar>
 
-        {view === "sheets" ? (
+        {view === "compare" && range ? (
+          <main className="shell-compare">
+            <RemoteBoundary
+              name="compare"
+              fallback={<p className="shell-canvas-message">Compare unavailable</p>}
+            >
+              <Suspense
+                fallback={<p className="shell-canvas-message">Loading compare…</p>}
+              >
+                <SheetCompare sheetId={sheetId} from={range.from} to={range.to} />
+              </Suspense>
+            </RemoteBoundary>
+          </main>
+        ) : view === "sheets" ? (
           <main className="shell-sheets">
             <RemoteBoundary
               name="navigator"

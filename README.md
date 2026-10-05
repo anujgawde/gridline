@@ -89,7 +89,7 @@ gridline/
 │  ├─ shell/             # Host app
 │  ├─ viewer/            # Sheet rendering remote
 │  ├─ navigator/         # Set browsing remote (in progress)
-│  └─ compare/           # Revision diff remote (planned)
+│  └─ compare/           # Revision diff remote (in progress)
 ├─ tools/
 │  ├─ serve.mjs          # Static file server for the production builds
 │  ├─ setgen/            # Synthetic drawing-set generator
@@ -191,7 +191,7 @@ Pre-alpha.
 **Not built yet**
 
 - Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
-- The compare remote
+- Revision diffing in the compare remote, which so far is a skeleton the shell can load
 - Markup
 - Per-app deployment pipelines
 

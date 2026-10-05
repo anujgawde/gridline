@@ -1,6 +1,7 @@
 {
   "remotes": [
     { "name": "viewer", "entry": "http://localhost:4101/mf-manifest.json" },
-    { "name": "navigator", "entry": "http://localhost:4102/mf-manifest.json" }
+    { "name": "navigator", "entry": "http://localhost:4102/mf-manifest.json" },
+    { "name": "compare", "entry": "http://localhost:4103/mf-manifest.json" }
   ]
 }

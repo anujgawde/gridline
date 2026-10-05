@@ -80,7 +80,8 @@
   flex: 0 0 auto;
 }
 
-.shell-sheets {
+.shell-sheets,
+.shell-compare {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
