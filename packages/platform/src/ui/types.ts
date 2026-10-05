@@ -6,9 +6,13 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 export type IconName =
   | "alert-triangle"
   | "check"
+  | "chevron-down"
+  | "chevron-up"
   | "cloud-off"
+  | "columns-2"
   | "hand"
   | "layers"
+  | "link"
   | "maximize"
   | "message-square"
   | "minus"
@@ -18,6 +22,7 @@ export type IconName =
   | "search-x"
   | "slash"
   | "square-dashed"
+  | "unlink"
   | "x";
 
 /* Icon sizes are px because an icon pairs with a touch target, and the target is

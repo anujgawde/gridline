@@ -19,6 +19,11 @@
   --supersede-300:#FFD79A; --supersede-400:#FFB24D; --supersede-500:#FF8C1A;
   --supersede-600:#C96A00; --supersede-700:#8F4B00;
 
+  /* --- Compare: RESERVED. Which revision a mark belongs to — FROM is teal, TO
+     is magenta. One value for both themes: they mark linework on white paper,
+     not chrome. --- */
+  --compare-from:#0B7285; --compare-to:#B01E80;
+
   /* --- Error --- */
   --red-300:#FFB3AE; --red-400:#FF7B72; --red-500:#E5484D; --red-600:#C42A2F; --red-700:#8F1C21;
   /* --- Success --- */
