@@ -2,7 +2,7 @@ import { useRef } from "react";
 
 import type { SheetIndexEntry } from "../sources";
 import { openSheet } from "./open-sheet";
-import { SupersedeBadge } from "./supersede-badge";
+import { RevisionBadgeButton } from "./revision-badge-button";
 import type { DisciplineGroup } from "./types";
 import { useThumbnail } from "./use-thumbnail";
 
@@ -14,7 +14,7 @@ import { useThumbnail } from "./use-thumbnail";
    never fetches an image.
 
    The whole card opens its sheet, but the card is not itself a button: a
-   superseded card holds a second control, the badge, and a button cannot
+   reissued card holds a second control, the badge, and a button cannot
    contain another. So the sheet number is the button, and its ::after
    stretches over the card — clicking anywhere opens the sheet, while the badge
    sits above that layer and opens the comparison instead. */
@@ -28,11 +28,11 @@ export function SheetCard({
   tabIndex?: number;
 }) {
   const box = useRef<HTMLSpanElement>(null);
-  const image = useThumbnail(sheet.sheetId, box);
-  const superseded = sheet.revision > 1;
+  const image = useThumbnail(sheet.sheetId, sheet.revision, box);
+  const revised = sheet.revision > 1;
 
   return (
-    <div className="sheet-card" data-superseded={superseded || undefined}>
+    <div className="sheet-card">
       <span
         ref={thumbnail ? box : undefined}
         className="sheet-card-thumb"
@@ -42,7 +42,6 @@ export function SheetCard({
         {image.status === "loaded" && (
           <img className="sheet-card-image" src={image.url} alt="" decoding="async" draggable={false} />
         )}
-        {superseded && <span className="sheet-card-stripe" />}
       </span>
       <span className="sheet-card-body">
         <button
@@ -55,7 +54,7 @@ export function SheetCard({
         >
           {sheet.sheetId}
         </button>
-        {superseded && <SupersedeBadge sheet={sheet} />}
+        {revised && <RevisionBadgeButton sheet={sheet} />}
         <span className="sheet-card-title">{sheet.title}</span>
       </span>
     </div>

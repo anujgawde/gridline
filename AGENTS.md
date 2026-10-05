@@ -25,7 +25,10 @@ Pre-alpha. The workspace packages:
   nothing. The sheet stepper in the top
   bar shows only with the drawing.
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
-  `./SheetSurface` and also runs standalone on port 4101.
+  `./SheetSurface` and also runs standalone on port 4101. A sheet opens at
+  its latest revision, which the viewer reads from the sheet index rather
+  than being told; the full-page renderer draws the combined PDF, the set as
+  first issued, and says REV 1.
 - **`apps/navigator`** — `@gridline/navigator`. The second remote. Exposes
   `./SetNavigator` with two layouts: `grid`, the whole set full-screen
   (`?view=sheets` in the shell), and `panel`, beside the drawing. Runs standalone
@@ -38,9 +41,9 @@ Pre-alpha. The workspace packages:
   publishes `sheet:open`. On the full-screen grid, arrows and Home/End move
   between sheets as soon as it loads, and Enter opens one; beside a drawing,
   Shift+Up and Shift+Down open the previous and next sheet from anywhere on
-  the page. A reissued sheet is marked superseded (stripe, ring, badge); its
-  badge is a button that publishes `compare:request` for REV 1 against the
-  latest.
+  the page. Thumbnails show the latest revision. A reissued sheet carries a
+  badge with that revision, and the badge is a button that publishes
+  `compare:request` for REV 1 against it.
 - **`apps/compare`** — `@gridline/compare`. The third remote. Exposes
   `./SheetCompare`, given a sheet and two revisions as props. The shell shows
   it at `?view=compare&sheet=A-131&from=1&to=3`, in the body beside the rail.

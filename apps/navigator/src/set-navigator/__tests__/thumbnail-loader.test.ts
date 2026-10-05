@@ -42,22 +42,25 @@ describe("ThumbnailLoader", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("asks for each sheet's level-0 tile", async () => {
-    new ThumbnailLoader("http://data.test/").request("A-101", noop, noop);
+  it("asks for the level-0 tile of the latest revision", async () => {
+    new ThumbnailLoader("http://data.test/").request("A-101", 1, noop, noop);
     await flush();
     expect(control.fetch.mock.calls[0]![0]).toBe("http://data.test/tiles/A-101/l0/0_0.webp");
+    new ThumbnailLoader("http://data.test/").request("A-131", 3, noop, noop);
+    await flush();
+    expect(control.fetch.mock.calls[1]![0]).toBe("http://data.test/tiles/A-131/r3/l0/0_0.webp");
   });
 
   it("starts no more than its limit at once", async () => {
     const loader = new ThumbnailLoader("http://data.test", 2);
-    for (const id of ["A", "B", "C", "D"]) loader.request(id, noop, noop);
+    for (const id of ["A", "B", "C", "D"]) loader.request(id, 1, noop, noop);
     await flush();
     expect(control.started).toEqual(["A", "B"]);
   });
 
   it("serves one batch in the order it was asked for", async () => {
     const loader = new ThumbnailLoader("http://data.test", 2);
-    for (const id of ["A", "B", "C", "D", "E"]) loader.request(id, noop, noop);
+    for (const id of ["A", "B", "C", "D", "E"]) loader.request(id, 1, noop, noop);
     await flush();
     await control.answer("A");
     await control.answer("B");
@@ -66,10 +69,10 @@ describe("ThumbnailLoader", () => {
 
   it("serves a newer batch before an older one still waiting", async () => {
     const loader = new ThumbnailLoader("http://data.test", 1);
-    for (const id of ["A", "B", "C"]) loader.request(id, noop, noop);
+    for (const id of ["A", "B", "C"]) loader.request(id, 1, noop, noop);
     await flush();
     // A later task asks for two more while B and C are still queued.
-    for (const id of ["X", "Y"]) loader.request(id, noop, noop);
+    for (const id of ["X", "Y"]) loader.request(id, 1, noop, noop);
     await flush();
     await control.answer("A");
     await control.answer("X");
@@ -79,9 +82,9 @@ describe("ThumbnailLoader", () => {
 
   it("drops a withdrawn request that has not started", async () => {
     const loader = new ThumbnailLoader("http://data.test", 1);
-    loader.request("A", noop, noop);
-    const withdrawB = loader.request("B", noop, noop);
-    loader.request("C", noop, noop);
+    loader.request("A", 1, noop, noop);
+    const withdrawB = loader.request("B", 1, noop, noop);
+    loader.request("C", 1, noop, noop);
     await flush();
     withdrawB();
     await control.answer("A");
@@ -92,8 +95,8 @@ describe("ThumbnailLoader", () => {
     const loader = new ThumbnailLoader("http://data.test", 1);
     const onFail = vi.fn();
     const onLoad = vi.fn();
-    const withdraw = loader.request("A", onLoad, onFail);
-    loader.request("B", noop, noop);
+    const withdraw = loader.request("A", 1, onLoad, onFail);
+    loader.request("B", 1, noop, noop);
     await flush();
     withdraw();
     await flush();
@@ -106,7 +109,7 @@ describe("ThumbnailLoader", () => {
   it("hands over an object URL once loaded", async () => {
     const loader = new ThumbnailLoader("http://data.test");
     const onLoad = vi.fn();
-    loader.request("A", onLoad, noop);
+    loader.request("A", 1, onLoad, noop);
     await flush();
     await control.answer("A");
     expect(onLoad).toHaveBeenCalledWith("blob:x");

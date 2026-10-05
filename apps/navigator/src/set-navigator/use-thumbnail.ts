@@ -9,7 +9,11 @@ export const ThumbnailContext = createContext<ThumbnailServices | null>(null);
 
 /* A card's thumbnail: requested when the card comes on screen, withdrawn if it
    leaves before arriving, and kept once loaded for as long as the card exists. */
-export function useThumbnail(sheetId: string, ref: RefObject<Element | null>): ThumbnailState {
+export function useThumbnail(
+  sheetId: string,
+  revision: number,
+  ref: RefObject<Element | null>,
+): ThumbnailState {
   const thumbnails = useContext(ThumbnailContext);
   const [state, setState] = useState<ThumbnailState>({ status: "idle" });
 
@@ -26,6 +30,7 @@ export function useThumbnail(sheetId: string, ref: RefObject<Element | null>): T
         setState({ status: "loading" });
         withdraw = thumbnails.loader.request(
           sheetId,
+          revision,
           (loaded) => {
             url = loaded;
             withdraw = null;
@@ -48,7 +53,7 @@ export function useThumbnail(sheetId: string, ref: RefObject<Element | null>): T
       withdraw?.();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [thumbnails, sheetId, ref]);
+  }, [thumbnails, sheetId, revision, ref]);
 
   return state;
 }

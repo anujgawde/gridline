@@ -6,8 +6,8 @@ import type { SheetIndexEntry } from "../sources";
    it — the shell opens compare for any `compare:request`, from here or from
    anywhere else that publishes one.
 
-   From revision 1 because that is what the set opens: the sheet as first
-   issued, which a later revision has superseded. */
+   From revision 1 to the latest: what has changed since the sheet was first
+   issued, ending at the revision a click on the card opens. */
 export function requestCompare(sheet: SheetIndexEntry) {
   bus.publish("compare:request", {
     sheetId: sheet.sheetId,

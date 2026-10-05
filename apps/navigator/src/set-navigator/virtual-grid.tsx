@@ -8,7 +8,7 @@ import type { SheetIndexEntry } from "../sources";
 import { thumbnailsEnabled } from "./grid-mode";
 import { markGridShown } from "./grid-shown";
 import { openSheet } from "./open-sheet";
-import { SupersedeBadge } from "./supersede-badge";
+import { RevisionBadgeButton } from "./revision-badge-button";
 import { ThumbnailLoader } from "./thumbnail-loader";
 import { SectionLabel, SheetCard } from "./sheet-card";
 import type {
@@ -386,7 +386,7 @@ function Item({
         tabIndex={probe ? -1 : undefined}
         onClick={() => openSheet(sheet.sheetId)}
       />
-      {sheet.revision > 1 && <SupersedeBadge sheet={sheet} />}
+      {sheet.revision > 1 && <RevisionBadgeButton sheet={sheet} />}
     </div>
   );
 }

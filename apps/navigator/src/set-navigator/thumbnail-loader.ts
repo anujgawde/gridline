@@ -49,7 +49,15 @@ export class ThumbnailLoader {
   /* Returns a function that withdraws the request: dropped if still waiting,
      aborted if in flight, and a no-op once it has loaded. The caller owns the
      object URL passed to `onLoad` and must revoke it. */
-  request(sheetId: string, onLoad: (objectUrl: string) => void, onFail: () => void) {
+  /* The thumbnail is the revision a click opens — the latest — so a reissued
+     card never previews a drawing nobody will be shown. Its tiles sit one
+     directory down, as the tiler writes them. */
+  request(
+    sheetId: string,
+    revision: number,
+    onLoad: (objectUrl: string) => void,
+    onFail: () => void,
+  ) {
     if (!this.#batchOpen) {
       this.#batch += 1;
       this.#batchOpen = true;
@@ -59,7 +67,7 @@ export class ThumbnailLoader {
     }
 
     const job: Job = {
-      url: `${this.baseUrl.replace(/\/$/, "")}/tiles/${encodeURIComponent(sheetId)}/l0/0_0.webp`,
+      url: `${this.baseUrl.replace(/\/$/, "")}/tiles/${encodeURIComponent(sheetId)}${revision > 1 ? `/r${revision}` : ""}/l0/0_0.webp`,
       batch: this.#batch,
       onLoad,
       onFail,
