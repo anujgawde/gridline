@@ -1,22 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { useViewInput } from "../view";
-import type { Size } from "../view";
 
 import { drawPane } from "./draw";
 import { PaneHeader } from "./pane-header";
 import { TileSet } from "./tile-set";
 import type { PaneProps } from "./types";
+import { useStage } from "./use-stage";
 import "./pane.css";
 
 /* One revision on a canvas. Draws from the shared view and writes to it, but
    holds no view of its own. */
 export function Pane({ pyramid, heading, view, setView, onResize }: PaneProps) {
-  const host = useRef<HTMLDivElement>(null);
+  const { host, size } = useStage(onResize);
   const canvas = useRef<HTMLCanvasElement>(null);
   const tiles = useRef<TileSet | null>(null);
   const frame = useRef(0);
-  const [size, setSize] = useState<Size | null>(null);
 
   /* Read by the frame callback, which a tile arrival can schedule at any
      time — it must draw what is current then, not what was current when it
@@ -58,22 +57,6 @@ export function Pane({ pyramid, heading, view, setView, onResize }: PaneProps) {
       tiles.current = null;
     };
   }, [pyramid, schedule]);
-
-  useEffect(() => {
-    const el = host.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      const next = {
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      };
-      setSize(next);
-      onResize?.(next);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [onResize]);
 
   useEffect(schedule, [view, size, schedule]);
 

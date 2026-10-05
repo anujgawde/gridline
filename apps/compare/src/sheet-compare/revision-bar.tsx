@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { bus } from "@gridline/platform/bus";
 
 import { RevisionPicker } from "./revision-picker";
@@ -7,6 +9,8 @@ interface RevisionBarProps {
   sheetId: string;
   from: number;
   to: number;
+  /* Drawn at the bar's far end. */
+  children?: ReactNode;
 }
 
 const range = (first: number, last: number) =>
@@ -19,7 +23,7 @@ const range = (first: number, last: number) =>
    the address, and asking the same way everyone else does keeps it the one
    way into a comparison. Dates and descriptions join this bar once the set
    carries revision history. */
-export function RevisionBar({ sheetId, from, to }: RevisionBarProps) {
+export function RevisionBar({ sheetId, from, to, children }: RevisionBarProps) {
   const latest = useLatestRevision(sheetId);
   const known = latest !== null && to <= latest;
   const ask = (next: { from: number; to: number }) =>
@@ -42,6 +46,8 @@ export function RevisionBar({ sheetId, from, to }: RevisionBarProps) {
         choices={known && latest !== null ? range(from + 1, latest) : [to]}
         onChange={(r) => ask({ from, to: r })}
       />
+      <span className="compare-spacer" />
+      {children}
     </div>
   );
 }

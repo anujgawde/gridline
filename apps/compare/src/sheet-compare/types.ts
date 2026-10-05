@@ -13,6 +13,9 @@ export interface SheetCompareProps {
 
 export type Side = "from" | "to";
 
+/* Two panes, or both revisions blended on one canvas. */
+export type CompareMode = "side" | "onion";
+
 /* Null until fitted. Locked, both hold the same view. */
 export interface PaneViews {
   from: View | null;

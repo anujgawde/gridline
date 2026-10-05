@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { Button, IconButton, Toolbar, ToolbarSeparator } from "@gridline/platform/ui";
 
 import { zoomPercent } from "../view";
@@ -6,7 +8,10 @@ import type { View } from "../view";
 interface ZoomBarProps {
   /* The TO pane's view: the revision being worked towards. */
   view: View | null;
-  locked: boolean;
+  /* Left out where there is only one canvas, and so nothing to lock. */
+  locked?: boolean;
+  /* Drawn before the zoom controls. */
+  children?: ReactNode;
   onZoom: (factor: number) => void;
   onFit: () => void;
   onLockedChange: (locked: boolean) => void;
@@ -17,24 +22,33 @@ const STEP = 1.25;
 
 /* Zoom for both panes, and the lock again with its key, for a hand that is
    on the screen rather than the keyboard. */
-export function ZoomBar({ view, locked, onZoom, onFit, onLockedChange }: ZoomBarProps) {
+export function ZoomBar({ view, locked, children, onZoom, onFit, onLockedChange }: ZoomBarProps) {
   return (
     <div className="compare-zoom-bar">
       <Toolbar tier="overlay" aria-label="Zoom">
+        {children}
         <IconButton icon="minus" label="Zoom out" onClick={() => onZoom(1 / STEP)} />
         <span className="compare-zoom-readout">{view ? zoomPercent(view) : ""}</span>
         <IconButton icon="plus" label="Zoom in" onClick={() => onZoom(STEP)} />
-        <IconButton icon="maximize" label="Fit both sheets" onClick={onFit} />
-        <ToolbarSeparator />
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={locked ? "link" : "unlink"}
-          aria-pressed={locked}
-          onClick={() => onLockedChange(!locked)}
-        >
-          {locked ? "Locked" : "Unlocked"} <span className="compare-key-hint">L</span>
-        </Button>
+        <IconButton
+          icon="maximize"
+          label={locked === undefined ? "Fit sheet" : "Fit both sheets"}
+          onClick={onFit}
+        />
+        {locked !== undefined && (
+          <>
+            <ToolbarSeparator />
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={locked ? "link" : "unlink"}
+              aria-pressed={locked}
+              onClick={() => onLockedChange(!locked)}
+            >
+              {locked ? "Locked" : "Unlocked"} <span className="compare-key-hint">L</span>
+            </Button>
+          </>
+        )}
       </Toolbar>
     </div>
   );

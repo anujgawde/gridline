@@ -55,7 +55,12 @@ Pre-alpha. The workspace packages:
   Draws the two revisions side by side from their tile pyramids. The panes
   are locked by default, so a drag or wheel in either moves both; "Panes
   unlocked" lets each move on its own, and locking again brings the other
-  pane to the one moved last. L toggles; holding Shift unlocks until released. It has its own
+  pane to the one moved last. L toggles; holding Shift unlocks until released.
+  The second mode, onion skin (O; S returns to side by side), draws both
+  revisions on one canvas, FROM in teal and TO multiplied over it in magenta,
+  so linework in both turns navy and a change keeps its revision's colour; a
+  slider blends between them. The mode is local state, not in the address,
+  so a reload returns to side by side. It has its own
   small tile renderer rather than the viewer's: one level at a time per pane,
   over level 0, with no cache budget.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the

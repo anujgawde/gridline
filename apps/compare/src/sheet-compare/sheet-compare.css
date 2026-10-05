@@ -86,6 +86,46 @@
   color: var(--text-secondary);
 }
 
+/* --- Mode switch: a segmented control at the bar's end --- */
+
+.compare-modes {
+  display: flex;
+  flex: 0 0 auto;
+  border: var(--border-w) solid var(--border-subtle);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+}
+
+.compare-mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: var(--type-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.compare-mode + .compare-mode {
+  border-left: var(--border-w) solid var(--border-subtle);
+}
+.compare-mode:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.compare-mode[aria-pressed="true"] {
+  background: var(--surface-selected);
+  box-shadow: inset 0 0 0 var(--border-w) var(--border-accent);
+  color: var(--text-accent);
+  font: var(--type-body-strong);
+}
+.compare-mode:focus-visible {
+  outline-offset: calc(var(--focus-w) * -1);
+}
+
 /* --- Panes and what floats over them --- */
 
 .compare-body {
@@ -142,6 +182,135 @@
   bottom: var(--space-5);
   left: 50%;
   transform: translateX(-50%);
+}
+
+/* --- Onion skin: the key and the blend slider --- */
+
+.compare-onion-key {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-overlay);
+  border: var(--border-w) solid var(--border-subtle);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-overlay);
+}
+
+.compare-onion-key-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font: var(--type-body);
+  color: var(--text-secondary);
+  --key-line: var(--compare-from);
+}
+.compare-onion-key-row[data-side="to"] {
+  --key-line: var(--compare-to);
+}
+.compare-onion-key-row[data-side="both"] {
+  --key-line: var(--compare-both);
+  color: var(--text-tertiary);
+}
+
+/* A scrap of paper with a line on it, as the canvas draws it. */
+.compare-onion-key-sample {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: calc(var(--space-6) + var(--space-half));
+  height: var(--space-4);
+  background: var(--sheet-paper);
+}
+.compare-onion-key-line {
+  width: var(--space-5);
+  height: var(--border-w-emphasis);
+  background: var(--key-line);
+}
+
+.compare-blend-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  padding: 0 var(--space-1);
+  font: var(--type-data);
+  color: var(--text-secondary);
+}
+
+.compare-blend-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  width: calc(var(--space-12) * 2);
+  margin: 0 var(--space-2);
+}
+.compare-blend-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--space-1);
+  background: var(--fill-track);
+}
+
+.compare-blend-tick {
+  position: absolute;
+  width: var(--border-w);
+  height: var(--space-3);
+  background: var(--border-strong);
+}
+.compare-blend-tick[data-at="start"] {
+  left: 0;
+}
+.compare-blend-tick[data-at="middle"] {
+  left: 50%;
+}
+.compare-blend-tick[data-at="end"] {
+  right: 0;
+}
+
+/* The input spans the track and is as tall as a touch target; only its thumb
+   is drawn. */
+.compare-blend-input {
+  position: relative;
+  width: 100%;
+  min-height: var(--control-md);
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+.compare-blend-input::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.compare-blend-input::-webkit-slider-thumb {
+  appearance: none;
+  width: calc(var(--space-3) + var(--space-half));
+  height: calc(var(--space-5) + var(--space-half));
+  background: var(--fill-accent);
+  border: var(--border-w) solid var(--blue-400);
+  border-radius: var(--radius-2);
+}
+.compare-blend-input::-moz-range-thumb {
+  width: calc(var(--space-3) + var(--space-half));
+  height: calc(var(--space-5) + var(--space-half));
+  background: var(--fill-accent);
+  border: var(--border-w) solid var(--blue-400);
+  border-radius: var(--radius-2);
+}
+
+.compare-blend-label {
+  min-width: var(--space-11);
+  text-align: center;
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-primary);
 }
 
 .compare-zoom-readout {

@@ -36,7 +36,7 @@ function drawLevel(
    #000000A6`. Canvas shadows have no spread, so the shadow is lighter to
    make up for the -12px it cannot shrink by. Shadow lengths are in device
    pixels and ignore the transform; the edge is one CSS pixel at any zoom. */
-function paper(ctx: CanvasRenderingContext2D, index: TileIndex, view: View, dpr: number) {
+export function paper(ctx: CanvasRenderingContext2D, index: TileIndex, view: View, dpr: number) {
   ctx.save();
   ctx.shadowColor = "#00000073";
   ctx.shadowOffsetY = 14 * dpr;
@@ -50,10 +50,16 @@ function paper(ctx: CanvasRenderingContext2D, index: TileIndex, view: View, dpr:
   ctx.strokeRect(0, 0, index.pageWidth, index.pageHeight);
 }
 
-/* One frame of a pane: level 0 underneath, so the pane is never blank, and
-   the level matching the scale on top once its tiles arrive. Returns the
-   levels in use, which are the ones the pane keeps. */
-export function drawPane(
+/* From sheet space to the canvas's device pixels. */
+export function toSheet(ctx: CanvasRenderingContext2D, view: View, dpr: number) {
+  const s = view.scale * dpr;
+  ctx.setTransform(s, 0, 0, s, -view.x * s, -view.y * s);
+}
+
+/* The sheet's tiles: level 0 underneath, so the sheet is never blank, and the
+   level matching the scale on top once its tiles arrive. Returns the levels
+   in use, which are the ones the caller keeps. */
+export function drawTiles(
   ctx: CanvasRenderingContext2D,
   tiles: TileSet,
   index: TileIndex,
@@ -61,12 +67,8 @@ export function drawPane(
   pane: Size,
   dpr: number,
 ): number[] {
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
   const s = view.scale * dpr;
-  ctx.setTransform(s, 0, 0, s, -view.x * s, -view.y * s);
-  paper(ctx, index, view, dpr);
+  toSheet(ctx, view, dpr);
 
   /* Tiles at the page's edge carry white past it; the page ends where the
      sheet does. */
@@ -84,4 +86,20 @@ export function drawPane(
 
   ctx.restore();
   return [base.level, current.level];
+}
+
+/* One frame of a pane: the paper, then the sheet on it. */
+export function drawPane(
+  ctx: CanvasRenderingContext2D,
+  tiles: TileSet,
+  index: TileIndex,
+  view: View,
+  pane: Size,
+  dpr: number,
+): number[] {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  toSheet(ctx, view, dpr);
+  paper(ctx, index, view, dpr);
+  return drawTiles(ctx, tiles, index, view, pane, dpr);
 }
