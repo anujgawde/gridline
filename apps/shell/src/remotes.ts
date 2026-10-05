@@ -23,7 +23,7 @@ const RemoteLookup = z.object({
    surface here keeps them decoupled. If it drifts from what the viewer actually
    exposes, the mismatch surfaces as an error inside that remote's own slot. */
 export interface ViewerSheetSurface {
-  SheetSurface: ComponentType<{ sheetId: string; revision: number }>;
+  SheetSurface: ComponentType<{ sheetId: string }>;
 }
 
 export function loadSheetSurface() {

@@ -159,7 +159,7 @@ export function App() {
     setView("drawing");
   };
 
-  /* The one way into compare: whoever asks — the navigator's superseded
+  /* The one way into compare: whoever asks — the navigator's revision
      badge today, anything else that publishes the event later — the shell
      shows the comparison. Arriving is a new history entry, so Back returns to
      where it was asked from; changing revisions inside compare replaces the
@@ -286,7 +286,7 @@ export function App() {
             onClick={() => view !== "sheets" && showView("sheets")}
           />
           {/* Opening a comparison needs two revisions, which the shell cannot
-              know; a superseded badge asks for one. So this item only marks
+              know; a revision badge asks for one. So this item only marks
               that a comparison is open — a destination you are on, which
               pressing does not leave. Exit and Esc do. */}
           <IconButton
@@ -348,7 +348,7 @@ export function App() {
                 <Suspense
                   fallback={<p className="shell-canvas-message">Loading viewer…</p>}
                 >
-                  <SheetSurface sheetId={sheetId} revision={4} />
+                  <SheetSurface sheetId={sheetId} />
                 </Suspense>
               </RemoteBoundary>
             </main>
