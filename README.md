@@ -63,18 +63,18 @@ Both checks run against `pnpm serve`, a dependency-free static file server over 
 
 ## Stack
 
-| Concern | Choice |
-|---------|--------|
-| Framework | React 19 + TypeScript (strict) |
-| Federation | Rspack Module Federation 2.0 |
-| Rendering | Canvas 2D + OffscreenCanvas |
-| PDF parse | pdf.js in a dedicated worker |
-| State | Zustand (per-MFE) + shared platform store |
-| Styling | Tailwind + CSS custom properties from platform |
+| Concern     | Choice                                                                |
+| ----------- | --------------------------------------------------------------------- |
+| Framework   | React 19 + TypeScript (strict)                                        |
+| Federation  | Rspack Module Federation 2.0                                          |
+| Rendering   | Canvas 2D + OffscreenCanvas                                           |
+| PDF parse   | pdf.js in a dedicated worker                                          |
+| State       | Zustand (per-MFE) + shared platform store                             |
+| Styling     | Tailwind + CSS custom properties from platform                        |
 | Persistence | The browser's own HTTP cache for tiles; IndexedDB planned for markups |
-| Network | Mock Service Worker (MSW) — no backend |
-| Input | Hand-rolled gesture layer over Pointer Events |
-| Testing | Vitest (unit) + Playwright (e2e + perf traces) |
+| Network     | Mock Service Worker (MSW) — no backend                                |
+| Input       | Hand-rolled gesture layer over Pointer Events                         |
+| Testing     | Vitest (unit) + Playwright (e2e + perf traces)                        |
 
 ## No backend
 
@@ -126,15 +126,15 @@ Test conditions:
 - **Network:** 1.6 Mbit/s with a 562 ms round trip. The static server applies this, not the browser, because CDP sets network conditions per target and a service worker is a separate target.
 - **Renderers:** both ship. Choose one with `?renderer=fullpage` or `?renderer=tiled`.
 
-| Measurement | `fullpage` | `tiled` |
-|---|---|---|
-| First sheet on screen, cold | 225.5 s | **9.55 s** |
-| Main-thread block during load | 1120 ms | **134 ms** |
-| Longest single task | 875 ms | **81 ms** |
-| Peak memory over a 50-sheet session | 2230 MB | **182 MB** |
-| Sheet change, jumping across the set | **210 ms** | 1821 ms |
-| Sheet change, reading in order | **210 ms** | **35 ms** on a third to a half of them |
-| Return to a visited sheet | not measured | **84 ms** |
+| Measurement                          | `fullpage`   | `tiled`                                |
+| ------------------------------------ | ------------ | -------------------------------------- |
+| First sheet on screen, cold          | 225.5 s      | **9.55 s**                             |
+| Main-thread block during load        | 1120 ms      | **134 ms**                             |
+| Longest single task                  | 875 ms       | **81 ms**                              |
+| Peak memory over a 50-sheet session  | 2230 MB      | **182 MB**                             |
+| Sheet change, jumping across the set | **210 ms**   | 1821 ms                                |
+| Sheet change, reading in order       | **210 ms**   | **35 ms** on a third to a half of them |
+| Return to a visited sheet            | not measured | **84 ms**                              |
 
 The `tiled` column was re-taken with the navigator and the shell's rail on the page, and with every response from a server sharing one throttled link, as a real connection does. The `fullpage` column is from earlier runs; its figures are dominated by the 42 MB transfer, which neither change touches.
 
