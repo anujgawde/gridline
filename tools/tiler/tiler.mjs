@@ -38,6 +38,14 @@ const { values } = parseArgs({
 });
 
 const setDir = resolve(process.cwd(), values.set);
+
+/* Revision 1 keeps the tile paths the set has always had; a reissue nests
+   under its sheet, so everything belonging to A-101 is still one directory. */
+function tileDir(sheet) {
+  return sheet.revision > 1
+    ? join(sheet.sheetId, `r${sheet.revision}`)
+    : sheet.sheetId;
+}
 const outDir = resolve(process.cwd(), values.out);
 const quality = Number(values.quality);
 
@@ -68,14 +76,18 @@ async function runWorkers(sheets, workerCount) {
     manifest.push(...JSON.parse(await readFile(partial, "utf8")));
     await rm(partial, { force: true });
   }
-  manifest.sort((a, b) => a.sheetId.localeCompare(b.sheetId));
+  manifest.sort(
+    (a, b) =>
+      a.sheetId.localeCompare(b.sheetId) ||
+      (a.revision ?? 1) - (b.revision ?? 1),
+  );
 
   const totalBytes = manifest.reduce((sum, s) => sum + s.bytes, 0);
   await writeManifests(manifest);
 
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
-    `${manifest.length} sheets, ${(totalBytes / 1024 / 1024).toFixed(1)} MB, ` +
+    `${manifest.length} sheet revisions, ${(totalBytes / 1024 / 1024).toFixed(1)} MB, ` +
       `${seconds}s across ${workerCount} workers -> ${values.out}`,
   );
   console.log(
@@ -100,7 +112,8 @@ async function writeManifests(manifest) {
         tileSize: TILE,
         maxLevel: MAX_LEVEL,
         quality,
-        sheetCount: manifest.length,
+        sheetCount: manifest.filter((s) => !s.revision).length,
+        revisionCount: manifest.filter((s) => s.revision).length,
       },
       null,
       2,
@@ -109,7 +122,7 @@ async function writeManifests(manifest) {
 
   for (const sheet of manifest) {
     await writeFile(
-      join(outDir, sheet.sheetId, "tile-index.json"),
+      join(outDir, tileDir(sheet), "tile-index.json"),
       `${JSON.stringify(sheet)}\n`,
     );
   }
@@ -120,9 +133,24 @@ async function main() {
     await readFile(join(setDir, "sheet-index.json"), "utf8"),
   );
 
-  let sheets = index.sheets;
-  if (values.only) sheets = sheets.filter((s) => s.sheetId === values.only);
-  if (values.limit) sheets = sheets.slice(0, Number(values.limit));
+  /* Reissues are listed in setgen's manifest with the file each one was
+     written to, so the tiler reads where they are rather than repeating
+     setgen's naming rule. A reissue is tiled exactly like revision 1: it is a
+     sheet in its own right, and Compare needs a whole pyramid for each side. */
+  const issued = JSON.parse(
+    await readFile(join(setDir, "manifest.json"), "utf8"),
+  );
+  const fileOf = new Map(issued.sheets.map((s) => [s.sheetId, s.file]));
+
+  let base = index.sheets;
+  if (values.only) base = base.filter((s) => s.sheetId === values.only);
+  if (values.limit) base = base.slice(0, Number(values.limit));
+
+  const chosen = new Set(base.map((s) => s.sheetId));
+  let sheets = [
+    ...base.map((s) => ({ ...s, revision: 1, file: fileOf.get(s.sheetId) })),
+    ...issued.revisions.filter((r) => chosen.has(r.sheetId)),
+  ];
 
   const isChild = Boolean(values.slice);
   const workerCount = isChild
@@ -161,7 +189,7 @@ async function main() {
   const manifest = [];
 
   for (const [i, sheet] of sheets.entries()) {
-    const doc = await openSheet(join(setDir, "sheets", `${sheet.sheetId}.pdf`));
+    const doc = await openSheet(join(setDir, sheet.file));
     const page = await doc.getPage(1);
     const base = page.getViewport({ scale: 1 });
     const aspect = base.width / base.height;
@@ -170,7 +198,7 @@ async function main() {
     let sheetBytes = 0;
 
     for (const level of levels) {
-      const dir = join(outDir, sheet.sheetId, `l${level.level}`);
+      const dir = join(outDir, tileDir(sheet), `l${level.level}`);
       await mkdir(dir, { recursive: true });
       for (const tile of await renderLevel(page, level, quality)) {
         await writeFile(join(dir, `${tile.col}_${tile.row}.webp`), tile.bytes);
@@ -184,6 +212,9 @@ async function main() {
        sheet-space. Without it the first request is a guess. */
     manifest.push({
       sheetId: sheet.sheetId,
+      /* Only on a reissue, so revision 1's index is byte for byte the file it
+         was before revisions existed. Absent means 1, as in the sheet index. */
+      ...(sheet.revision > 1 ? { revision: sheet.revision } : {}),
       title: sheet.title,
       discipline: sheet.discipline,
       pageWidth: base.width,
