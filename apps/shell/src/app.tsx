@@ -159,6 +159,27 @@ export function App() {
     setView("drawing");
   };
 
+  /* The one way into compare: whoever asks — the navigator's superseded
+     badge today, anything else that publishes the event later — the shell
+     shows the comparison. Arriving is a new history entry, so Back returns to
+     where it was asked from; changing revisions inside compare replaces the
+     entry, so Back does not step through every pair tried. */
+  useEffect(
+    () =>
+      bus.subscribe("compare:request", ({ sheetId: next, from, to }) => {
+        const address = addressFor("compare", next, { from, to });
+        if (viewRef.current === "compare") {
+          window.history.replaceState(null, "", address);
+        } else {
+          window.history.pushState(null, "", address);
+        }
+        setSheetId(next);
+        setRange({ from, to });
+        setView("compare");
+      }),
+    [],
+  );
+
   /* Compare can also say it is finished; the shell still decides what
      follows. */
   useEffect(
@@ -254,24 +275,25 @@ export function App() {
 
       <div className="shell-body">
         {/* The rail launches apps, so it is the shell's: adding a tool to the
-            viewer never changes it. "Sheet index" opens the whole set and,
-            pressed again, returns to the drawing. */}
+            viewer never changes it. Each item is a destination: pressing the
+            one you are on does nothing. The way back to a drawing is to choose
+            a sheet, or Back. */}
         <Toolbar orientation="vertical" aria-label="Apps">
           <IconButton
             icon="layers"
             label="Sheet index"
             active={view === "sheets"}
-            onClick={() => showView(view === "sheets" ? "drawing" : "sheets")}
+            onClick={() => view !== "sheets" && showView("sheets")}
           />
           {/* Opening a comparison needs two revisions, which the shell cannot
-              know; the navigator's superseded badge asks for one. Here the
-              item shows that a comparison is open, and closes it. */}
+              know; a superseded badge asks for one. So this item only marks
+              that a comparison is open — a destination you are on, which
+              pressing does not leave. Exit and Esc do. */}
           <IconButton
             icon="columns-2"
             label="Compare revisions"
             active={view === "compare"}
             disabled={view !== "compare"}
-            onClick={() => leaveCompare(sheetId)}
           />
         </Toolbar>
 
