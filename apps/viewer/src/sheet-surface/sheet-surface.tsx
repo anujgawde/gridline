@@ -37,7 +37,7 @@ interface Ready {
    re-trigger the effect it feeds. */
 const EMPTY_NEIGHBOURS: string[] = [];
 
-export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
+export function SheetSurface({ sheetId }: SheetSurfaceProps) {
   const [ready, setReady] = useState<Ready | null>(null);
   const [resolved, setResolved] = useState(false);
   const [current, setCurrent] = useState(sheetId);
@@ -84,15 +84,36 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
 
   useEffect(() => setCurrent(sheetId), [sheetId]);
 
+  /* The revision a sheet opens at is the latest one, and the sheet index is
+     what says which that is — nobody passes it in. A caller naming a revision
+     as well would be a second source for one fact, free to disagree with the
+     first.
+
+     Stable for the life of the index, because the tile loader holds it. */
+  const revisionOf = useMemo(() => {
+    const latest = new Map(
+      (ready?.index ?? []).map((sheet) => [sheet.sheetId, sheet.revision]),
+    );
+    return (id: string) => latest.get(id) ?? 1;
+  }, [ready]);
+
+  /* What is actually drawn, which the labels must match. The full-page
+     renderer opens the combined PDF — the set as first issued — so whatever
+     the index says, it is showing revision 1. */
+  const drawnRevision = useCallback(
+    (id: string) => (renderer === "tiled" ? revisionOf(id) : 1),
+    [renderer, revisionOf],
+  );
+
   const announce = useCallback(
     (painted: string) => {
       bus.publish("sheet:loaded", {
         sheetId: painted,
-        revision,
+        revision: drawnRevision(painted),
         pageCount: 1,
       });
     },
-    [revision],
+    [drawnRevision],
   );
 
   /* Stable, so publishing controls does not re-run the renderer's effect on
@@ -151,6 +172,7 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
           <TiledRenderer
             sheetId={current}
             source={ready.source}
+            revisionOf={revisionOf}
             onPainted={announce}
             onControls={takeControls}
             onStatsSource={takeStatsSource}
@@ -170,7 +192,7 @@ export function SheetSurface({ sheetId, revision }: SheetSurfaceProps) {
       </div>
       <SheetProperties
         sheetId={current}
-        revision={revision}
+        revision={drawnRevision(current)}
         entry={entry}
         renderer={renderer}
       />

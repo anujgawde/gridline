@@ -18,6 +18,8 @@ import type { TileIndex } from "./types";
 
 export interface DeepZoomRequest {
   sheetId: string;
+  /* The PDF of the revision on screen, under `sheets/`. */
+  file: string;
   /* Sheet-space rectangle to render, in points. */
   x: number;
   y: number;

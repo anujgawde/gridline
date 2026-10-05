@@ -4,6 +4,7 @@ import { useGestures, ZOOM_STEP } from "../../gestures";
 import type { GestureView } from "../../gestures";
 import type { ViewControls } from "../types";
 
+import { sheetFile, tileDir } from "../../sources";
 import type { SheetSource } from "../../sources";
 import { TileCache } from "./tile-cache";
 import { DeepZoomRenderer, needsDeepZoom } from "./deep-zoom";
@@ -79,6 +80,9 @@ const MAX_SCALE = 4;
 interface Props {
   sheetId: string;
   source: SheetSource;
+  /* Which revision of a sheet to draw. Asked per sheet, because neighbours
+     are fetched ahead and each may be on a different revision. */
+  revisionOf: (sheetId: string) => number;
   onPainted?: (sheetId: string) => void;
   /* Handed upward so the viewer's toolbar can drive the view without the
      toolbar knowing which renderer is mounted. */
@@ -107,6 +111,7 @@ function fittedView(index: TileIndex, canvas: HTMLCanvasElement): ViewState {
 export function TiledRenderer({
   sheetId,
   source,
+  revisionOf,
   onPainted,
   onControls,
   onStatsSource,
@@ -121,6 +126,14 @@ export function TiledRenderer({
   const frameRef = useRef(0);
   const deepRef = useRef<DeepZoomRenderer>(null);
   const deepResultRef = useRef<DeepZoomResult | null>(null);
+  /* Read through a ref by the loader, which is built once and outlives any
+     one render's props. */
+  const revisionOfRef = useRef(revisionOf);
+  revisionOfRef.current = revisionOf;
+  const dirOf = useCallback(
+    (id: string) => tileDir(id, revisionOfRef.current(id)),
+    [],
+  );
 
   /* Which sheet is actually on the canvas, not merely which one was asked for.
      Reporting "painted" against a sheetId that has only just changed makes a
@@ -151,6 +164,7 @@ export function TiledRenderer({
   loaderRef.current ??= new TileLoader(
     source.baseUrl.replace(/\/$/, ""),
     cacheRef.current,
+    dirOf,
   );
   deepRef.current ??= new DeepZoomRenderer(
     source.baseUrl.replace(/\/$/, ""),
@@ -275,6 +289,7 @@ export function TiledRenderer({
         try {
           deepRef.current?.request({
             sheetId: index.sheetId,
+            file: sheetFile(index.sheetId, revisionOfRef.current(index.sheetId)),
             ...region,
             pixelWidth: Math.round(canvas.width),
           });
@@ -374,7 +389,7 @@ export function TiledRenderer({
 
       const index = await loadTileIndex(
         source.baseUrl.replace(/\/$/, ""),
-        sheetId,
+        dirOf(sheetId),
       );
       if (cancelled) return;
 
@@ -460,7 +475,7 @@ export function TiledRenderer({
       for (const neighbour of neighbours) {
         const index = await loadTileIndex(
           source.baseUrl.replace(/\/$/, ""),
-          neighbour,
+          dirOf(neighbour),
         );
         /* A neighbour that will not resolve is not an error worth surfacing —
            nobody asked for it. It simply costs what it always cost. */

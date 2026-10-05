@@ -3,5 +3,7 @@ export {
   combinedUrl,
   loadSheetIndex,
   loadSheetSource,
+  sheetFile,
   sheetUrl,
+  tileDir,
 } from "./sources";

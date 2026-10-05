@@ -31,22 +31,24 @@ const TileIndexShape = z.object({
    sheet already open once. */
 const indexes = new Map<string, TileIndex>();
 
+/* Keyed by tile directory rather than sheet number, since each revision of a
+   sheet has its own pyramid. */
 export async function loadTileIndex(
   baseUrl: string,
-  sheetId: string,
+  dir: string,
 ): Promise<TileIndex | null> {
-  const cached = indexes.get(sheetId);
+  const cached = indexes.get(dir);
   if (cached) return cached;
 
-  const url = `${baseUrl}/tiles/${sheetId}/tile-index.json`;
+  const url = `${baseUrl}/tiles/${dir}/tile-index.json`;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${url} responded ${response.status}`);
     const index = TileIndexShape.parse(await response.json());
-    indexes.set(sheetId, index);
+    indexes.set(dir, index);
     return index;
   } catch (error) {
-    console.error(`[viewer] tile index for ${sheetId} unavailable`, error);
+    console.error(`[viewer] tile index for ${dir} unavailable`, error);
     return null;
   }
 }
@@ -110,9 +112,14 @@ export class TileLoader {
      that stranded pixels in 2.1. */
   #prefetching = new Set<string>();
 
+  /* `dirOf` maps a sheet to the directory of the revision being shown. Tile
+     ids stay keyed by sheet number alone: the viewer shows one revision of a
+     sheet at a time, so two revisions never share the cache. Showing two would
+     mean putting the revision into `tileId`. */
   constructor(
     private readonly baseUrl: string,
     private readonly cache: TileCache,
+    private readonly dirOf: (sheetId: string) => string,
   ) {}
 
   /* Returns what is already decoded, and starts fetching what is not.
@@ -188,7 +195,7 @@ export class TileLoader {
   }
 
   #urlFor(sheetId: string, key: TileKey) {
-    return `${this.baseUrl}/tiles/${sheetId}/l${key.level}/${key.col}_${key.row}.webp`;
+    return `${this.baseUrl}/tiles/${this.dirOf(sheetId)}/l${key.level}/${key.col}_${key.row}.webp`;
   }
 
   /* Live requests in flight. Prefetches share `#inFlight` for dedup, so the

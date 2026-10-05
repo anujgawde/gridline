@@ -32,7 +32,7 @@ function resident(cache: TileCache, k: TileKey, sheetId = SHEET) {
 }
 
 function loader(cache: TileCache) {
-  return new TileLoader("https://set.example/v1", cache);
+  return new TileLoader("https://set.example/v1", cache, (id) => id);
 }
 
 const noop = () => {};

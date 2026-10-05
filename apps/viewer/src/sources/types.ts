@@ -13,4 +13,6 @@ export interface SheetIndexEntry {
      so something has to hold the mapping — and in a set of 1,500 that something
      is the reason a navigator exists at all. */
   pageNumber: number;
+  /* The latest revision issued. The viewer always shows this one. */
+  revision: number;
 }

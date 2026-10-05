@@ -14,6 +14,8 @@ const SheetIndex = z.object({
       title: z.string(),
       discipline: z.string(),
       pageNumber: z.number().int().positive(),
+      /* Written only on reissued sheets; absent means issued once. */
+      revision: z.number().int().positive().default(1),
     })
     .array()
     .min(1),
@@ -62,6 +64,17 @@ function base(source: SheetSource) {
    opens, because that is what someone is actually handed. */
 export function combinedUrl(source: SheetSource) {
   return `${base(source)}/combined.pdf`;
+}
+
+/* Where one revision's tiles and PDF live, in the layout the tiler and setgen
+   write. Revision 1 keeps the bare sheet number, so reissuing a sheet changed
+   none of its existing paths; later revisions sit beside it. */
+export function tileDir(sheetId: string, revision: number) {
+  return revision > 1 ? `${sheetId}/r${revision}` : sheetId;
+}
+
+export function sheetFile(sheetId: string, revision: number) {
+  return revision > 1 ? `${sheetId}.r${revision}.pdf` : `${sheetId}.pdf`;
 }
 
 /* One sheet on its own — a derived artifact, not how a set arrives. The tiler

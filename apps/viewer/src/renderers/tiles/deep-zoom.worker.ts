@@ -11,6 +11,7 @@ interface Request {
   id: number;
   baseUrl: string;
   sheetId: string;
+  file: string;
   x: number;
   y: number;
   width: number;
@@ -19,19 +20,18 @@ interface Request {
 }
 
 let pdfjs: typeof import("pdfjs-dist") | null = null;
-let openSheetId: string | null = null;
+let openFile: string | null = null;
 let doc: PDFDocumentProxy | null = null;
 
-async function ensureDocument(baseUrl: string, sheetId: string) {
+async function ensureDocument(baseUrl: string, file: string) {
   pdfjs ??= await import("pdfjs-dist");
 
-  if (openSheetId === sheetId && doc) return doc;
+  if (openFile === file && doc) return doc;
 
   await doc?.cleanup();
   /* One sheet's own PDF — about 28 KB — not the 42 MB set. */
-  doc = await pdfjs.getDocument({ url: `${baseUrl}/sheets/${sheetId}.pdf` })
-    .promise;
-  openSheetId = sheetId;
+  doc = await pdfjs.getDocument({ url: `${baseUrl}/sheets/${file}` }).promise;
+  openFile = file;
   return doc;
 }
 
@@ -39,7 +39,7 @@ self.addEventListener("message", async (event: MessageEvent<Request>) => {
   const request = event.data;
 
   try {
-    const document = await ensureDocument(request.baseUrl, request.sheetId);
+    const document = await ensureDocument(request.baseUrl, request.file);
     const page = await document.getPage(1);
 
     const scale = request.pixelWidth / request.width;

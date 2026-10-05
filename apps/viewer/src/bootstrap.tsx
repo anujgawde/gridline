@@ -11,6 +11,6 @@ if (!container) throw new Error("#root is missing from index.html");
 
 createRoot(container).render(
   <StrictMode>
-    <SheetSurface sheetId="A-101" revision={4} />
+    <SheetSurface sheetId="A-101" />
   </StrictMode>,
 );
