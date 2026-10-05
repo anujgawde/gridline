@@ -1,0 +1,41 @@
+.compare-pane {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-canvas);
+  /* The pane handles its own drag and zoom; the browser must not scroll or
+     pinch the page underneath. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.compare-pane:active {
+  cursor: grabbing;
+}
+
+.compare-pane + .compare-pane {
+  border-left: var(--border-w) solid var(--border-hairline);
+}
+
+.compare-pane-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.compare-pane-label {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-1);
+  background: var(--surface-overlay);
+  font: var(--type-data-sm);
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  pointer-events: none;
+}

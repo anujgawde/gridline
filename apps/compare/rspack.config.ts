@@ -54,6 +54,10 @@ export default defineConfig({
   plugins: [
     new ModuleFederationPlugin(mfConfig),
     new rspack.HtmlRspackPlugin({ template: "./src/index.html" }),
+    // sources.json for standalone runs. Federated, the shell's copy answers.
+    new rspack.CopyRspackPlugin({
+      patterns: [{ from: "public", to: "." }],
+    }),
     isDev && new ReactRefreshRspackPlugin(),
   ],
   devServer: {

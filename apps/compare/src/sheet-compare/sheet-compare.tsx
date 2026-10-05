@@ -1,36 +1,55 @@
-import { bus } from "@gridline/platform/bus";
-import { Button } from "@gridline/platform/ui";
+import { useState } from "react";
 
 import "@gridline/platform/ui.css";
 
+import { Pane } from "../pane";
+
+import { CompareHeader } from "./compare-header";
 import type { SheetCompareProps } from "./types";
+import { usePyramids } from "./use-pyramids";
+import { usePaneViews } from "./use-pane-views";
 import "./sheet-compare.css";
 
-/* The header is this app's, not the shell's, though it spans the top of the
-   screen: the mode toggle and the revision pickers that join it later are
-   Compare features, and adding one must never make the shell ship.
+/* Two revisions side by side. Locked, panning or zooming either pane moves
+   both; unlocked, each pane moves on its own. */
+export function SheetCompare(props: SheetCompareProps) {
+  const { sheetId, from, to } = props;
+  const pyramids = usePyramids(sheetId, from, to);
+  const [locked, setLocked] = useState(true);
+  const { views, setters, setPaneSize } = usePaneViews(
+    pyramids,
+    `${sheetId}:${from}:${to}`,
+    locked,
+  );
 
-   Leaving is a bus event rather than a callback prop. The shell decides what
-   is on screen; this app only says it is finished. */
-export function SheetCompare({ sheetId, from, to }: SheetCompareProps) {
   return (
     <div className="compare">
-      <header className="compare-header">
-        <span className="compare-label">Compare revisions</span>
-        <span className="compare-sheet">{sheetId}</span>
-        <span className="compare-range">
-          REV {from} → REV {to}
-        </span>
-        <span className="compare-spacer" />
-        <Button
-          variant="secondary"
-          icon="x"
-          onClick={() => bus.publish("compare:closed", { sheetId })}
-        >
-          Exit compare
-        </Button>
-      </header>
-      <div className="compare-body" />
+      <CompareHeader {...props} locked={locked} onLockedChange={setLocked} />
+      <div className="compare-body">
+        {pyramids.status === "ready" ? (
+          <>
+            <Pane
+              pyramid={pyramids.from}
+              label={`FROM · REV ${from}`}
+              view={views.from}
+              setView={setters.from}
+              onResize={setPaneSize}
+            />
+            <Pane
+              pyramid={pyramids.to}
+              label={`TO · REV ${to}`}
+              view={views.to}
+              setView={setters.to}
+            />
+          </>
+        ) : (
+          <p className="compare-message">
+            {pyramids.status === "loading"
+              ? "Loading revisions…"
+              : `${sheetId} REV ${from} → REV ${to} unavailable`}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

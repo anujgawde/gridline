@@ -1,3 +1,6 @@
+import type { Pyramid } from "../pyramid";
+import type { View } from "../view";
+
 /* The host says which sheet and which two revisions. Props rather than a
    `compare:request` subscription: the shell mounts this app only once a
    comparison is wanted, so the request has already been published by the time
@@ -7,3 +10,22 @@ export interface SheetCompareProps {
   from: number;
   to: number;
 }
+
+export interface CompareHeaderProps extends SheetCompareProps {
+  /* Whether the panes pan and zoom together. */
+  locked: boolean;
+  onLockedChange: (locked: boolean) => void;
+}
+
+export type Side = "from" | "to";
+
+/* Null until fitted. Locked, both hold the same view. */
+export interface PaneViews {
+  from: View | null;
+  to: View | null;
+}
+
+export type PyramidsState =
+  | { status: "loading" }
+  | { status: "failed" }
+  | { status: "ready"; from: Pyramid; to: Pyramid };

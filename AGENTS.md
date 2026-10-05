@@ -39,7 +39,12 @@ Pre-alpha. The workspace packages:
   it at `?view=compare&sheet=A-131&from=1&to=3`, in the body beside the rail.
   It owns its own header, and leaves by publishing `compare:closed`, after
   which the shell shows that sheet's drawing. Runs standalone on port 4103.
-  A skeleton so far: no drawings are compared yet.
+  Draws the two revisions side by side from their tile pyramids. The panes
+  are locked by default, so a drag or wheel in either moves both; "Panes
+  unlocked" lets each move on its own, and locking again brings the other
+  pane to the one moved last. It has its own
+  small tile renderer rather than the viewer's: one level at a time per pane,
+  over level 0, with no cache budget.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -76,7 +81,7 @@ viewer calls, not a full library.
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 5 packages; `test` runs in `navigator`,
+`build` and `typecheck` run in 5 packages; `test` runs in `compare`, `navigator`,
 `platform`, `setgen`, `tiler` and `viewer`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
 outside any package's `dist/`, and takes about 20 seconds, so it has no business
 in a build graph.
