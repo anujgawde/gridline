@@ -1,0 +1,6 @@
+/* Standalone only. Inside the shell, the host sizes the remote's slot. */
+html,
+body,
+#root {
+  height: 100%;
+}
