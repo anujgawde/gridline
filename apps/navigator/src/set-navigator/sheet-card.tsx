@@ -2,6 +2,7 @@ import { useRef } from "react";
 
 import type { SheetIndexEntry } from "../sources";
 import { openSheet } from "./open-sheet";
+import { SupersedeBadge } from "./supersede-badge";
 import type { DisciplineGroup } from "./types";
 import { useThumbnail } from "./use-thumbnail";
 
@@ -12,8 +13,11 @@ import { useThumbnail } from "./use-thumbnail";
    thumbnails; the virtual grid's measuring probe uses it, so measuring a card
    never fetches an image.
 
-   The whole card is the button that opens its sheet, so the target is the card
-   rather than a control inside it. */
+   The whole card opens its sheet, but the card is not itself a button: a
+   superseded card holds a second control, the badge, and a button cannot
+   contain another. So the sheet number is the button, and its ::after
+   stretches over the card — clicking anywhere opens the sheet, while the badge
+   sits above that layer and opens the comparison instead. */
 export function SheetCard({
   sheet,
   thumbnail = true,
@@ -25,15 +29,10 @@ export function SheetCard({
 }) {
   const box = useRef<HTMLSpanElement>(null);
   const image = useThumbnail(sheet.sheetId, box);
+  const superseded = sheet.revision > 1;
 
   return (
-    <button
-      type="button"
-      className="sheet-card"
-      data-sheet-id={sheet.sheetId}
-      tabIndex={tabIndex}
-      onClick={() => openSheet(sheet.sheetId)}
-    >
+    <div className="sheet-card" data-superseded={superseded || undefined}>
       <span
         ref={thumbnail ? box : undefined}
         className="sheet-card-thumb"
@@ -43,12 +42,23 @@ export function SheetCard({
         {image.status === "loaded" && (
           <img className="sheet-card-image" src={image.url} alt="" decoding="async" draggable={false} />
         )}
+        {superseded && <span className="sheet-card-stripe" />}
       </span>
       <span className="sheet-card-body">
-        <span className="sheet-card-number">{sheet.sheetId}</span>
+        <button
+          type="button"
+          className="sheet-card-open sheet-card-number"
+          data-sheet-id={sheet.sheetId}
+          tabIndex={tabIndex}
+          aria-label={`${sheet.sheetId} ${sheet.title}`}
+          onClick={() => openSheet(sheet.sheetId)}
+        >
+          {sheet.sheetId}
+        </button>
+        {superseded && <SupersedeBadge sheet={sheet} />}
         <span className="sheet-card-title">{sheet.title}</span>
       </span>
-    </button>
+    </div>
   );
 }
 

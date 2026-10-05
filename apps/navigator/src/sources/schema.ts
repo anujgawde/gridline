@@ -12,6 +12,9 @@ export const SheetIndex = z.object({
       title: z.string(),
       discipline: z.string().min(1),
       pageNumber: z.number().int().positive(),
+      /* The latest revision. Present only on reissued sheets; absent means
+         the sheet has only ever been issued once. */
+      revision: z.number().int().positive().default(1),
     })
     .array()
     .min(1),

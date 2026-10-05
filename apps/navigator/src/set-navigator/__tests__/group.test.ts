@@ -7,6 +7,7 @@ const sheet = (sheetId: string, discipline: string, pageNumber: number) => ({
   title: `TITLE ${sheetId}`,
   discipline,
   pageNumber,
+  revision: 1,
 });
 
 describe("groupByDiscipline", () => {

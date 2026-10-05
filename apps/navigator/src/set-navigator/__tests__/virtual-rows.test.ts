@@ -11,6 +11,7 @@ const group = (discipline: string, count: number): DisciplineGroup => ({
     title: `TITLE ${i}`,
     discipline,
     pageNumber: i + 1,
+    revision: 1,
   })),
 });
 

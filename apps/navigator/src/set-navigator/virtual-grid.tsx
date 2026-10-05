@@ -8,6 +8,7 @@ import type { SheetIndexEntry } from "../sources";
 import { thumbnailsEnabled } from "./grid-mode";
 import { markGridShown } from "./grid-shown";
 import { openSheet } from "./open-sheet";
+import { SupersedeBadge } from "./supersede-badge";
 import { ThumbnailLoader } from "./thumbnail-loader";
 import { SectionLabel, SheetCard } from "./sheet-card";
 import type {
@@ -373,14 +374,19 @@ function Item({
   if (variant === "cards") {
     return <SheetCard sheet={sheet} thumbnail={!probe} tabIndex={tabStop ? 0 : -1} />;
   }
+  /* The badge beside the row rather than inside it, as in the mockup: the
+     row is a button, and a button cannot hold another. */
   return (
-    <ListItem
-      code={sheet.sheetId}
-      title={sheet.title}
-      selected={open}
-      data-sheet-id={sheet.sheetId}
-      tabIndex={probe ? -1 : undefined}
-      onClick={() => openSheet(sheet.sheetId)}
-    />
+    <div className="sheet-list-row" data-open={open || undefined}>
+      <ListItem
+        code={sheet.sheetId}
+        title={sheet.title}
+        selected={open}
+        data-sheet-id={sheet.sheetId}
+        tabIndex={probe ? -1 : undefined}
+        onClick={() => openSheet(sheet.sheetId)}
+      />
+      {sheet.revision > 1 && <SupersedeBadge sheet={sheet} />}
+    </div>
   );
 }
