@@ -30,6 +30,17 @@ export function zoomAt(view: View, factor: number, px: number, py: number): View
   return { x: sx - px / scale, y: sy - py / scale, scale };
 }
 
+/* Zoom about the middle of the pane — the zoom buttons, which have no cursor
+   to anchor to. */
+export function zoomAtCentre(view: View, factor: number, pane: Size): View {
+  return zoomAt(view, factor, pane.width / 2, pane.height / 2);
+}
+
+/* 100% is one sheet point per CSS pixel. */
+export function zoomPercent(view: View): string {
+  return `${Math.round(view.scale * 100)}%`;
+}
+
 /* Move by a distance in CSS pixels; the sheet follows the pointer. */
 export function panBy(view: View, dx: number, dy: number): View {
   return { ...view, x: view.x - dx / view.scale, y: view.y - dy / view.scale };

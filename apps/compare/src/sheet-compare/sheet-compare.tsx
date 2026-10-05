@@ -1,22 +1,31 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import "@gridline/platform/ui.css";
 
 import { Pane } from "../pane";
 
-import { CompareHeader } from "./compare-header";
+import { LockPill } from "./lock-pill";
+import { RevisionBar } from "./revision-bar";
 import type { SheetCompareProps } from "./types";
-import { usePyramids } from "./use-pyramids";
+import { useLockKeys } from "./use-lock-keys";
 import { usePaneViews } from "./use-pane-views";
+import { usePyramids } from "./use-pyramids";
+import { ZoomBar } from "./zoom-bar";
 import "./sheet-compare.css";
 
 /* Two revisions side by side. Locked, panning or zooming either pane moves
-   both; unlocked, each pane moves on its own. */
-export function SheetCompare(props: SheetCompareProps) {
-  const { sheetId, from, to } = props;
+   both; unlocked, each pane moves on its own.
+
+   The title and the way out are in the shell's top bar, not here: what is on
+   screen is the shell's decision. Everything below that bar is Compare's. */
+export function SheetCompare({ sheetId, from, to }: SheetCompareProps) {
   const pyramids = usePyramids(sheetId, from, to);
-  const [locked, setLocked] = useState(true);
-  const { views, setters, setPaneSize } = usePaneViews(
+  const [lockedSetting, setLocked] = useState(true);
+  const toggleLock = useCallback(() => setLocked((l) => !l), []);
+  const shiftHeld = useLockKeys(toggleLock);
+  const locked = lockedSetting && !shiftHeld;
+
+  const { views, setters, setPaneSize, zoomBoth, fitBoth } = usePaneViews(
     pyramids,
     `${sheetId}:${from}:${to}`,
     locked,
@@ -24,22 +33,30 @@ export function SheetCompare(props: SheetCompareProps) {
 
   return (
     <div className="compare">
-      <CompareHeader {...props} locked={locked} onLockedChange={setLocked} />
-      <div className="compare-body">
+      <RevisionBar from={from} to={to} />
+      <div className="compare-body" data-locked={locked}>
         {pyramids.status === "ready" ? (
           <>
             <Pane
               pyramid={pyramids.from}
-              label={`FROM · REV ${from}`}
+              heading="FROM"
               view={views.from}
               setView={setters.from}
               onResize={setPaneSize}
             />
             <Pane
               pyramid={pyramids.to}
-              label={`TO · REV ${to}`}
+              heading="TO"
               view={views.to}
               setView={setters.to}
+            />
+            <LockPill locked={locked} onLockedChange={setLocked} />
+            <ZoomBar
+              view={views.to}
+              locked={locked}
+              onZoom={zoomBoth}
+              onFit={fitBoth}
+              onLockedChange={setLocked}
             />
           </>
         ) : (

@@ -7,42 +7,67 @@
   color: var(--text-primary);
 }
 
-.compare-header {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  min-height: var(--toolbar-h);
-  padding: 0 var(--space-2) 0 var(--space-3);
-  gap: var(--space-2);
-  background: var(--surface-chrome);
-  border-bottom: var(--border-w) solid var(--border-hairline);
-}
-
-.compare-label {
+.compare-micro {
   font: var(--type-micro);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-tertiary);
 }
 
-.compare-sheet {
-  font: var(--type-data);
-  font-variant-numeric: var(--numeric-tabular);
-  letter-spacing: 0.02em;
-}
-
-.compare-range {
-  font: var(--type-data-sm);
-  font-variant-numeric: var(--numeric-tabular);
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-}
-
 .compare-spacer {
   flex: 1;
 }
 
+.compare-key-hint {
+  font: var(--type-data-sm);
+  opacity: 0.75;
+}
+
+/* --- Revision bar: 56px in the mockup --- */
+
+.compare-revisions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: calc(var(--control-sm) + var(--space-5));
+  padding: 0 var(--space-3);
+  gap: var(--space-3);
+  background: var(--surface-chrome-raised);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.compare-rev-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
+  border: var(--border-w) solid var(--border-subtle);
+  border-radius: var(--radius-1);
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+}
+
+.compare-swatch {
+  flex: 0 0 auto;
+  width: var(--space-2);
+  height: var(--space-2);
+  border: var(--border-w) solid var(--border-strong);
+  background: var(--compare-from);
+}
+.compare-swatch[data-side="to"] {
+  background: var(--compare-to);
+}
+
+.compare-arrow {
+  font: var(--type-data);
+  color: var(--text-secondary);
+}
+
+/* --- Panes and what floats over them --- */
+
 .compare-body {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -52,4 +77,54 @@
   margin: auto;
   font: var(--type-body);
   color: var(--text-tertiary);
+}
+
+/* Centred over the seam, just below the pane headers (48px in the mockup). */
+.compare-lock-pill {
+  position: absolute;
+  top: calc(var(--row-h-dense) + var(--space-3));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: calc(var(--control-sm) + var(--space-1));
+  padding: 0 var(--space-1) 0 var(--space-3);
+  background: var(--surface-overlay);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-overlay);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.compare-lock-pill[data-locked="true"] {
+  border-color: var(--border-accent);
+  color: var(--text-accent);
+}
+
+.compare-lock-title {
+  font: var(--type-body-strong);
+  color: var(--text-primary);
+}
+.compare-lock-pill[data-locked="true"] .compare-lock-title {
+  color: var(--text-accent);
+}
+
+.compare-lock-hint {
+  font: var(--type-data-sm);
+  color: var(--text-tertiary);
+}
+
+.compare-zoom-bar {
+  position: absolute;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.compare-zoom-readout {
+  min-width: var(--space-10);
+  text-align: center;
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
 }

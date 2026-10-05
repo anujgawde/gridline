@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SetStateAction } from "react";
 
-import { fit } from "../view";
+import { fit, zoomAtCentre } from "../view";
 import type { Size, View } from "../view";
 
 import { movePane, relock } from "./pane-views";
@@ -43,5 +43,19 @@ export function usePaneViews(state: PyramidsState, key: string, locked: boolean)
     return { from: setterFor("from"), to: setterFor("to") };
   }, [locked]);
 
-  return { views, setters, setPaneSize };
+  /* The zoom buttons: each pane about its own middle, so locked panes stay
+     identical and unlocked ones each keep what they are centred on. */
+  const zoomBoth = useCallback(
+    (factor: number) => {
+      if (!paneSize) return;
+      const zoom = (v: View | null) => v && zoomAtCentre(v, factor, paneSize);
+      setViews((v) => ({ from: zoom(v.from), to: zoom(v.to) }));
+    },
+    [paneSize],
+  );
+
+  /* Unfitted views are fitted again by the effect above. */
+  const fitBoth = useCallback(() => setViews(UNFITTED), []);
+
+  return { views, setters, setPaneSize, zoomBoth, fitBoth };
 }

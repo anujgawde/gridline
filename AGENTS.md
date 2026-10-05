@@ -17,7 +17,9 @@ Pre-alpha. The workspace packages:
   the navigator and compare at runtime, and shows active-sheet state published
   on the bus. Owns which of them is on screen: the rail's "Sheet index" opens
   the full-screen grid, any `sheet:open` or `compare:closed` switches back to
-  the drawing, and the address follows, so Back returns to where you were. The sheet stepper in the top
+  the drawing, and the address follows, so Back returns to where you were.
+  In compare, the top bar carries the compare title and Exit (also Esc), and
+  the rail's "Compare revisions" item is active: leaving is the shell's call. The sheet stepper in the top
   bar shows only with the drawing.
 - **`apps/viewer`** — `@gridline/viewer`. The first remote. Exposes
   `./SheetSurface` and also runs standalone on port 4101.
@@ -37,12 +39,14 @@ Pre-alpha. The workspace packages:
 - **`apps/compare`** — `@gridline/compare`. The third remote. Exposes
   `./SheetCompare`, given a sheet and two revisions as props. The shell shows
   it at `?view=compare&sheet=A-131&from=1&to=3`, in the body beside the rail.
-  It owns its own header, and leaves by publishing `compare:closed`, after
+  Owns everything below the shell's top bar: the FROM → TO revision bar, a
+  header strip per pane with its zoom, the lock pill over the seam, and the
+  bottom zoom bar. It can also leave by publishing `compare:closed`, after
   which the shell shows that sheet's drawing. Runs standalone on port 4103.
   Draws the two revisions side by side from their tile pyramids. The panes
   are locked by default, so a drag or wheel in either moves both; "Panes
   unlocked" lets each move on its own, and locking again brings the other
-  pane to the one moved last. It has its own
+  pane to the one moved last. L toggles; holding Shift unlocks until released. It has its own
   small tile renderer rather than the viewer's: one level at a time per pane,
   over level 0, with no cache budget.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the

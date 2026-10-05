@@ -31,6 +31,25 @@ function drawLevel(
   }
 }
 
+/* The sheet as a sheet of paper on the canvas: white, a hairline edge and a
+   drop shadow, after the mockup's `0 0 0 1px #00000040, 0 14px 36px -12px
+   #000000A6`. Canvas shadows have no spread, so the shadow is lighter to
+   make up for the -12px it cannot shrink by. Shadow lengths are in device
+   pixels and ignore the transform; the edge is one CSS pixel at any zoom. */
+function paper(ctx: CanvasRenderingContext2D, index: TileIndex, view: View, dpr: number) {
+  ctx.save();
+  ctx.shadowColor = "#00000073";
+  ctx.shadowOffsetY = 14 * dpr;
+  ctx.shadowBlur = 30 * dpr;
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, index.pageWidth, index.pageHeight);
+  ctx.restore();
+
+  ctx.strokeStyle = "#00000040";
+  ctx.lineWidth = 1 / view.scale;
+  ctx.strokeRect(0, 0, index.pageWidth, index.pageHeight);
+}
+
 /* One frame of a pane: level 0 underneath, so the pane is never blank, and
    the level matching the scale on top once its tiles arrive. Returns the
    levels in use, which are the ones the pane keeps. */
@@ -47,6 +66,7 @@ export function drawPane(
 
   const s = view.scale * dpr;
   ctx.setTransform(s, 0, 0, s, -view.x * s, -view.y * s);
+  paper(ctx, index, view, dpr);
 
   /* Tiles at the page's edge carry white past it; the page ends where the
      sheet does. */

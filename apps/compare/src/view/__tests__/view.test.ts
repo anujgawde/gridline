@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fit, panBy, visibleRect, zoomAt } from "../view";
+import { fit, panBy, visibleRect, zoomAt, zoomAtCentre, zoomPercent } from "../view";
 
 const page = { width: 3024, height: 2160 };
 const pane = { width: 800, height: 600 };
@@ -31,6 +31,26 @@ describe("zoomAt", () => {
     const view = fit(page, pane);
     expect(zoomAt(view, 1e6, 0, 0).scale).toBe(8);
     expect(zoomAt(view, 1e-6, 0, 0).scale).toBe(0.02);
+  });
+});
+
+describe("zoomAtCentre", () => {
+  it("keeps the middle of the pane still", () => {
+    const view = fit(page, pane);
+    const middle = (v: typeof view) => ({
+      x: v.x + pane.width / 2 / v.scale,
+      y: v.y + pane.height / 2 / v.scale,
+    });
+    const zoomed = zoomAtCentre(view, 2, pane);
+    expect(middle(zoomed).x).toBeCloseTo(middle(view).x);
+    expect(middle(zoomed).y).toBeCloseTo(middle(view).y);
+  });
+});
+
+describe("zoomPercent", () => {
+  it("reads one sheet point per pixel as 100%", () => {
+    expect(zoomPercent({ x: 0, y: 0, scale: 1 })).toBe("100%");
+    expect(zoomPercent({ x: 0, y: 0, scale: 0.7444 })).toBe("74%");
   });
 });
 

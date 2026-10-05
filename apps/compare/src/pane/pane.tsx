@@ -4,13 +4,14 @@ import { useViewInput } from "../view";
 import type { Size } from "../view";
 
 import { drawPane } from "./draw";
+import { PaneHeader } from "./pane-header";
 import { TileSet } from "./tile-set";
 import type { PaneProps } from "./types";
 import "./pane.css";
 
 /* One revision on a canvas. Draws from the shared view and writes to it, but
    holds no view of its own. */
-export function Pane({ pyramid, label, view, setView, onResize }: PaneProps) {
+export function Pane({ pyramid, heading, view, setView, onResize }: PaneProps) {
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const tiles = useRef<TileSet | null>(null);
@@ -77,9 +78,11 @@ export function Pane({ pyramid, label, view, setView, onResize }: PaneProps) {
   useEffect(schedule, [view, size, schedule]);
 
   return (
-    <div className="compare-pane" ref={host}>
-      <canvas className="compare-pane-canvas" ref={canvas} />
-      <span className="compare-pane-label">{label}</span>
+    <div className="compare-pane">
+      <PaneHeader heading={heading} revision={pyramid.ref.revision} view={view} />
+      <div className="compare-pane-stage" ref={host}>
+        <canvas className="compare-pane-canvas" ref={canvas} />
+      </div>
     </div>
   );
 }

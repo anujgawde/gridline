@@ -5,8 +5,8 @@ import type { Size, View } from "../view";
 
 export interface PaneProps {
   pyramid: Pyramid;
-  /* Shown over the pane, e.g. "FROM · REV 1". */
-  label: string;
+  /* "FROM" or "TO", over the pane's revision number. */
+  heading: string;
   /* Null until the shared view has been fitted. */
   view: View | null;
   setView: Dispatch<SetStateAction<View | null>>;

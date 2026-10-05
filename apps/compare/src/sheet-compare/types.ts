@@ -11,12 +11,6 @@ export interface SheetCompareProps {
   to: number;
 }
 
-export interface CompareHeaderProps extends SheetCompareProps {
-  /* Whether the panes pan and zoom together. */
-  locked: boolean;
-  onLockedChange: (locked: boolean) => void;
-}
-
 export type Side = "from" | "to";
 
 /* Null until fitted. Locked, both hold the same view. */
