@@ -128,10 +128,19 @@
 
 /* --- Panes and what floats over them --- */
 
+/* The panes and the Changes panel beside them. The panel sits outside
+   .compare-body so what floats over the panes centres on the panes alone. */
+.compare-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .compare-body {
   position: relative;
   display: flex;
   flex: 1;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -318,4 +327,124 @@
   text-align: center;
   font: var(--type-data);
   font-variant-numeric: var(--numeric-tabular);
+}
+
+/* --- Changes panel --- */
+
+.compare-changes-message {
+  margin: 0;
+  padding: var(--space-4) var(--space-3);
+  font: var(--type-body);
+  color: var(--text-tertiary);
+}
+
+.compare-changes-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.compare-changes-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.compare-changes-total {
+  font: var(--type-data-lg);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-primary);
+}
+
+.compare-changes-label {
+  font: var(--type-title);
+  color: var(--text-primary);
+}
+
+.compare-changes-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.compare-changes-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  background: var(--surface-panel-header);
+  border-bottom: var(--border-w) solid var(--border-hairline);
+}
+
+.compare-changes-position {
+  flex: 1;
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-secondary);
+}
+
+.compare-change {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-lg);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: var(--border-w) solid var(--border-hairline);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.compare-change:hover {
+  background: var(--surface-hover);
+}
+.compare-change[aria-current="true"] {
+  background: var(--surface-selected);
+  box-shadow: inset var(--border-w-emphasis) 0 0 0 var(--border-accent);
+}
+.compare-change:focus-visible {
+  outline-offset: calc(var(--focus-w) * -1);
+}
+
+/* The onion skin's colours: teal removed, magenta added, both for a change. */
+.compare-change-swatch {
+  flex: 0 0 auto;
+  width: var(--space-2);
+  height: var(--space-2);
+  background: var(--compare-to);
+}
+.compare-change-swatch[data-kind="removed"] {
+  background: var(--compare-from);
+}
+.compare-change-swatch[data-kind="modified"] {
+  background: linear-gradient(var(--compare-from) 50%, var(--compare-to) 50%);
+}
+
+.compare-change-number {
+  flex: 0 0 auto;
+  min-width: var(--space-5);
+  font: var(--type-data);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--text-tertiary);
+}
+
+.compare-change-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  min-width: 0;
+}
+
+.compare-change-title {
+  font: var(--type-body-strong);
+  color: var(--text-primary);
+}
+
+.compare-change-meta {
+  font: var(--type-data-sm);
+  color: var(--text-tertiary);
 }

@@ -1,5 +1,6 @@
+import type { ChangesState } from "../changes";
 import type { Pyramid } from "../pyramid";
-import type { View } from "../view";
+import type { Size, View } from "../view";
 
 /* The host says which sheet and which two revisions. Props rather than a
    `compare:request` subscription: the shell mounts this app only once a
@@ -26,3 +27,16 @@ export type PyramidsState =
   | { status: "loading" }
   | { status: "failed" }
   | { status: "ready"; from: Pyramid; to: Pyramid };
+
+export interface ChangesPanelProps {
+  sheetId: string;
+  from: number;
+  to: number;
+  /* The sheet in sheet units, to say where on it each change is. */
+  page: Size | null;
+  changes: ChangesState;
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  /* -1 for the previous change, 1 for the next. */
+  onStep: (direction: 1 | -1) => void;
+}

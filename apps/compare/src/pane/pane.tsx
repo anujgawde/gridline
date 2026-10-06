@@ -4,29 +4,31 @@ import { useViewInput } from "../view";
 
 import { drawPane } from "./draw";
 import { PaneHeader } from "./pane-header";
+import { drawRegions, regionStyle } from "./regions";
 import { TileSet } from "./tile-set";
-import type { PaneProps } from "./types";
+import type { PaneProps, RegionStyle } from "./types";
 import { useStage } from "./use-stage";
 import "./pane.css";
 
 /* One revision on a canvas. Draws from the shared view and writes to it, but
    holds no view of its own. */
-export function Pane({ pyramid, heading, view, setView, onResize }: PaneProps) {
+export function Pane({ pyramid, heading, view, setView, onResize, regions, selectedId }: PaneProps) {
   const { host, size } = useStage(onResize);
   const canvas = useRef<HTMLCanvasElement>(null);
   const tiles = useRef<TileSet | null>(null);
   const frame = useRef(0);
+  const style = useRef<RegionStyle | null>(null);
 
   /* Read by the frame callback, which a tile arrival can schedule at any
      time — it must draw what is current then, not what was current when it
      was scheduled. */
-  const latest = useRef({ view, size });
-  latest.current = { view, size };
+  const latest = useRef({ view, size, regions, selectedId });
+  latest.current = { view, size, regions, selectedId };
 
   useViewInput(host, setView);
 
   const draw = useCallback(() => {
-    const { view, size } = latest.current;
+    const { view, size, regions, selectedId } = latest.current;
     const el = canvas.current;
     const ctx = el?.getContext("2d");
     if (!el || !ctx || !view || !size || !tiles.current) return;
@@ -40,6 +42,7 @@ export function Pane({ pyramid, heading, view, setView, onResize }: PaneProps) {
     }
     const kept = drawPane(ctx, tiles.current, pyramid.index, view, size, dpr);
     tiles.current.keepLevels(kept);
+    if (style.current) drawRegions(ctx, regions, selectedId, view, dpr, style.current);
   }, [pyramid]);
 
   const schedule = useCallback(() => {
@@ -58,7 +61,11 @@ export function Pane({ pyramid, heading, view, setView, onResize }: PaneProps) {
     };
   }, [pyramid, schedule]);
 
-  useEffect(schedule, [view, size, schedule]);
+  useEffect(() => {
+    if (host.current) style.current = regionStyle(host.current);
+  }, [host]);
+
+  useEffect(schedule, [view, size, regions, selectedId, schedule]);
 
   return (
     <div className="compare-pane">

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SetStateAction } from "react";
 
-import { fit, zoomAtCentre } from "../view";
-import type { Size, View } from "../view";
+import { fit, fitRect, zoomAtCentre } from "../view";
+import type { Rect, Size, View } from "../view";
 
 import { movePane, relock } from "./pane-views";
 import type { PaneViews, PyramidsState, Side } from "./types";
@@ -57,5 +57,16 @@ export function usePaneViews(state: PyramidsState, key: string, locked: boolean)
   /* Unfitted views are fitted again by the effect above. */
   const fitBoth = useCallback(() => setViews(UNFITTED), []);
 
-  return { views, setters, setPaneSize, zoomBoth, fitBoth };
+  /* Going to a change frames it in both panes, locked or not: choosing one is
+     a request to look there, in both revisions. */
+  const frameBoth = useCallback(
+    (rect: Rect) => {
+      if (!paneSize) return;
+      const framed = fitRect(rect, paneSize);
+      setViews({ from: framed, to: framed });
+    },
+    [paneSize],
+  );
+
+  return { views, setters, setPaneSize, zoomBoth, fitBoth, frameBoth };
 }
