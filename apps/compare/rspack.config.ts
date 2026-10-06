@@ -29,6 +29,9 @@ export default defineConfig({
     clean: true,
   },
   module: {
+    // `new RemoteWorker(new URL(...))` compiles its worker as a chunk, as
+    // `new Worker` would; see src/changes/remote-worker.ts.
+    parser: { javascript: { worker: ["RemoteWorker", "..."] } },
     rules: [
       {
         test: /\.tsx?$/,
