@@ -21,6 +21,25 @@ export function fit(page: Size, pane: Size): View {
   };
 }
 
+/* Framing a change leaves this much of the pane around it, so the change is
+   seen in its surroundings rather than filling the pane edge to edge. */
+const FRAME_MARGIN = 0.5;
+/* A small change is not zoomed past 200%: the deepest tiles are about 1.35
+   pixels per sheet point, so further in only fills the pane with blur. */
+const FRAME_MAX_SCALE = 2;
+
+/* A rectangle of the sheet, centred in the pane with room around it. */
+export function fitRect(rect: Rect, pane: Size): View {
+  const scale = clamp(
+    Math.min(FRAME_MAX_SCALE, Math.min(pane.width / rect.width, pane.height / rect.height) * FRAME_MARGIN),
+  );
+  return {
+    x: rect.x + rect.width / 2 - pane.width / scale / 2,
+    y: rect.y + rect.height / 2 - pane.height / scale / 2,
+    scale,
+  };
+}
+
 /* Zoom by `factor` about a point in the pane, keeping the sheet point under it
    still — which is what makes a wheel zoom feel anchored to the cursor. */
 export function zoomAt(view: View, factor: number, px: number, py: number): View {

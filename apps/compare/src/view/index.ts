@@ -1,3 +1,3 @@
 export type { Rect, Size, View } from "./types";
 export { useViewInput } from "./use-view-input";
-export { fit, panBy, visibleRect, zoomAt, zoomAtCentre, zoomPercent } from "./view";
+export { fit, fitRect, panBy, visibleRect, zoomAt, zoomAtCentre, zoomPercent } from "./view";

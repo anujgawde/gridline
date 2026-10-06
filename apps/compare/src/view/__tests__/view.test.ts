@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fit, panBy, visibleRect, zoomAt, zoomAtCentre, zoomPercent } from "../view";
+import { fit, fitRect, panBy, visibleRect, zoomAt, zoomAtCentre, zoomPercent } from "../view";
 
 const page = { width: 3024, height: 2160 };
 const pane = { width: 800, height: 600 };
@@ -58,5 +58,20 @@ describe("panBy", () => {
   it("moves the sheet with the pointer", () => {
     const view = { x: 100, y: 100, scale: 2 };
     expect(panBy(view, 40, -20)).toEqual({ x: 80, y: 110, scale: 2 });
+  });
+});
+
+describe("fitRect", () => {
+  it("centres the rectangle with room around it", () => {
+    const rect = { x: 1200, y: 900, width: 400, height: 150 };
+    const view = fitRect(rect, pane);
+    const seen = visibleRect(view, pane);
+    expect(seen.x + seen.width / 2).toBeCloseTo(rect.x + rect.width / 2);
+    expect(seen.y + seen.height / 2).toBeCloseTo(rect.y + rect.height / 2);
+    expect(seen.width).toBeCloseTo(rect.width * 2);
+  });
+
+  it("stops at 200% for a small change", () => {
+    expect(fitRect({ x: 10, y: 10, width: 4, height: 4 }, pane).scale).toBe(2);
   });
 });
