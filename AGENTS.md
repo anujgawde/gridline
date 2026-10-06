@@ -63,6 +63,16 @@ Pre-alpha. The workspace packages:
   so a reload returns to side by side. It has its own
   small tile renderer rather than the viewer's: one level at a time per pane,
   over level 0, with no cache budget.
+  Changes are found by a pixel diff of the two revisions' level-2 tiles, in
+  a worker, and nowhere else: a real reissue arrives with no list of edits,
+  so setgen's edit record is test-side only. Pixels give where and whether
+  ink was added, removed or both, never what the ink is, so each change is
+  a numbered box in every mode and a row in the Changes panel. Choosing
+  one frames it in both panes; N and P step through them, F fits.
+  The worker is started through `RemoteWorker`, a blob that
+  `importScripts` the real chunk, because a worker must be same-origin
+  with the shell's page; `rspack.config.ts` registers it as worker syntax
+  so the chunk is compiled at all.
 - **`tools/setgen`** — `@gridline/setgen`. Generates the synthetic drawing set the
   rendering work is measured against: 1,500 ARCH E1 sheets as vector PDFs, seeded
   so the set regenerates byte for byte. Plain Node, run locally, never in the
@@ -81,7 +91,7 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, revision diffing in the compare remote, and the
+Still to build: a pipeline per app, and the
 primitives the navigator needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 
