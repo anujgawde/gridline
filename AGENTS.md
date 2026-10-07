@@ -91,8 +91,9 @@ path exists before referencing it.
 Independent deployment is demonstrated rather than claimed: the measured
 checksums are in `README.md`, and the procedure re-runs in about a minute.
 
-Still to build: a pipeline per app, and the
-primitives the navigator needs — the set in `platform` today is the one the
+Still to build: a pipeline per app, markup, opening a change from compare in
+the drawing (it waits for markup, which is what makes landing there useful),
+and the primitives the navigator needs — the set in `platform` today is the one the
 viewer calls, not a full library.
 
 ## Commands
@@ -317,6 +318,13 @@ Three further rules, each learned from a gate that was wrong:
   already allows.
 - **A gate nobody has seen fail is a decoration.** Before trusting a new one,
   break the thing it guards and watch it trip.
+
+**Diagnostic switches are not features.** `?renderer=fullpage`, `?grid=full`,
+`?detect=main` and the rest exist to keep a baseline reachable or to make a
+gate fail on purpose. Read each through one small function, as
+`select.ts`, `grid-mode.ts` and compare's `switches.ts` do. A new one goes in the README's "Diagnostic switches"
+table in the same change, and the spec running it writes its own results
+file so it never replaces a baseline reading.
 
 Readings are written to `perf-results/`, never `test-results/`: Playwright
 empties its own output directory at the start of every run, so results written
