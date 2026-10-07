@@ -85,9 +85,9 @@ export async function panAndZoom(page: Page) {
    the same path a finger does: real pointer events, the gesture controller, the
    draw loop, compositing. Longer than the session walk's pan because frame
    pacing is a question about sustained movement — a dozen steps measures mostly
-   startup. */
-export async function sustainedPan(page: Page, steps = 60) {
-  const box = await page.locator("[data-renderer]").boundingBox();
+   startup. `target` is the element panned: the viewer's by default. */
+export async function sustainedPan(page: Page, steps = 60, target = "[data-renderer]") {
+  const box = await page.locator(target).boundingBox();
   if (!box) return;
 
   const cx = box.x + box.width / 2;

@@ -182,6 +182,45 @@ export const NAVIGATOR_BUDGETS = {
   },
 } as const;
 
+/* Compare, from compare.spec.ts: 3 runs × 4 comparisons (A-131, M-622,
+   AD-229, M-555, REV 1 → 3), 4x CPU and the shared-link throttle, taken
+   2026-10-06. Pans are on A-131 only, n=3.
+
+   Each gate was seen to fail under a switch (PERF_RUNS=1). "Warm: both
+   shown" (1223 ms, 1220–1242) is recorded in docs/perf/compare.md but not
+   gated: no switch moves it, and a gate nobody has seen fail is a
+   decoration. */
+export const COMPARE_BUDGETS = {
+  open: {
+    /* 2877 ms measured (2670–3123). Tripped by PERF_DETECT=main at 6028:
+       detection on the page's thread holds the drawing back three seconds. */
+    coldShownMs: 3600,
+    /* 4846 ms measured (4431–5641). The spread is as wide as the headroom and
+       A-131 is always the slowest of the four, so this is set from the worst
+       reading: 25% over the median would leave A-131's own runs 7% clear.
+       Tripped by PERF_DETECT_LEVEL=3 at 12722. */
+    coldFoundMs: 7050,
+    /* 787 ms measured (785–807). The diff itself: tiles come from the cache,
+       so this is the worker starting plus its decode, readback and pass over
+       the pixels. Tripped by PERF_DETECT_LEVEL=3, but only at 990: four times
+       the pixels adds ~200 ms, because most of the 787 is the worker starting.
+       On the page's thread the same work took 298 ms. */
+    warmFoundMs: 985,
+    /* 0 ms measured, every open, cold and warm. The absolute long-task line,
+       graded against the worst open rather than the median: the claim is that
+       detection never blocks the page, and a median would hide the one that
+       did. Tripped by PERF_DETECT=main at 106 cold and 111 warm. */
+    detectLongestTaskMs: 50,
+  },
+  pan: {
+    // 18 ms measured (18–18). Tripped by PERF_JANK=1 at 98.
+    sideFrameP95Ms: 23,
+    /* 25 ms measured (24–26). Two layers tinted and blended every frame.
+       Tripped by PERF_JANK=1 at 98. */
+    onionFrameP95Ms: 31,
+  },
+} as const;
+
 /* The naive renderer is measured, never graded. */
 export function isGated(renderer: string): boolean {
   return renderer === "tiled";

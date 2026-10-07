@@ -53,18 +53,20 @@ export async function readLongTasks(page: Page): Promise<LongTaskSummary> {
 /* The same long tasks, but only those that began after a given point on the
    page's clock. Interaction is measured on a page that has already loaded a
    sheet, and sheet loading is where the big tasks are — counting those against
-   a gesture would describe the load, not the gesture. */
+   a gesture would describe the load, not the gesture. `untilMs`, when given,
+   also leaves out tasks that began after it, so a window is measured. */
 export async function readLongTasksSince(
   page: Page,
   sinceMs: number,
+  untilMs = Infinity,
 ): Promise<LongTaskSummary> {
   const tasks = await page.evaluate(
-    (since) =>
+    ([since, until]) =>
       (
         (window as unknown as Record<string, { start: number; duration: number }[]>)
           .__longTasks ?? []
-      ).filter((task) => task.start >= since),
-    sinceMs,
+      ).filter((task) => task.start >= since && task.start <= until),
+    [sinceMs, untilMs] as const,
   );
   return {
     count: tasks.length,
