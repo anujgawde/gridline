@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 
+import { coarsestLevel } from "../pyramid";
 import { useViewInput } from "../view";
 
 import { drawPane } from "./draw";
@@ -12,18 +13,19 @@ import "./pane.css";
 
 /* One revision on a canvas. Draws from the shared view and writes to it, but
    holds no view of its own. */
-export function Pane({ pyramid, heading, view, setView, onResize, regions, selectedId }: PaneProps) {
+export function Pane({ pyramid, heading, view, setView, onResize, regions, selectedId, onShown }: PaneProps) {
   const { host, size } = useStage(onResize);
   const canvas = useRef<HTMLCanvasElement>(null);
   const tiles = useRef<TileSet | null>(null);
   const frame = useRef(0);
   const style = useRef<RegionStyle | null>(null);
+  const shown = useRef(false);
 
   /* Read by the frame callback, which a tile arrival can schedule at any
      time — it must draw what is current then, not what was current when it
      was scheduled. */
-  const latest = useRef({ view, size, regions, selectedId });
-  latest.current = { view, size, regions, selectedId };
+  const latest = useRef({ view, size, regions, selectedId, onShown });
+  latest.current = { view, size, regions, selectedId, onShown };
 
   useViewInput(host, setView);
 
@@ -43,6 +45,11 @@ export function Pane({ pyramid, heading, view, setView, onResize, regions, selec
     const kept = drawPane(ctx, tiles.current, pyramid.index, view, size, dpr);
     tiles.current.keepLevels(kept);
     if (style.current) drawRegions(ctx, regions, selectedId, view, dpr, style.current);
+
+    if (!shown.current && tiles.current.holds(coarsestLevel(pyramid.index.levels))) {
+      shown.current = true;
+      latest.current.onShown?.();
+    }
   }, [pyramid]);
 
   const schedule = useCallback(() => {
@@ -53,6 +60,7 @@ export function Pane({ pyramid, heading, view, setView, onResize, regions, selec
   useEffect(() => {
     const set = new TileSet(pyramid.ref, schedule);
     tiles.current = set;
+    shown.current = false;
     schedule();
     return () => {
       cancelAnimationFrame(frame.current);

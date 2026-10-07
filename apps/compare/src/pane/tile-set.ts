@@ -1,5 +1,5 @@
 import { loadTile, tileUrl } from "../pyramid";
-import type { PyramidRef } from "../pyramid";
+import type { PyramidRef, TileLevel } from "../pyramid";
 
 const key = (level: number, col: number, row: number) => `${level}/${col}_${row}`;
 const levelOf = (k: string) => Number(k.slice(0, k.indexOf("/")));
@@ -58,6 +58,13 @@ export class TileSet {
       controller.abort();
       this.inFlight.delete(k);
     }
+  }
+
+  /* Whether all of a level's tiles are held. */
+  holds(level: TileLevel) {
+    let held = 0;
+    for (const k of this.loaded.keys()) if (levelOf(k) === level.level) held += 1;
+    return held === level.cols * level.rows;
   }
 
   dispose() {

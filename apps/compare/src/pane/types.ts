@@ -18,6 +18,8 @@ export interface PaneProps {
   /* Changes boxed over the drawing; the selected one is highlighted. */
   regions: ChangeRegion[];
   selectedId: number | null;
+  /* Called once, when the whole of level 0 is on screen. */
+  onShown?: () => void;
 }
 
 export interface OnionPaneProps {
@@ -30,6 +32,8 @@ export interface OnionPaneProps {
   onResize?: (size: Size) => void;
   regions: ChangeRegion[];
   selectedId: number | null;
+  /* Called once, when both revisions' level 0 is on screen. */
+  onShown?: () => void;
 }
 
 /* One revision as the onion skin draws it. */

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import "@gridline/platform/ui.css";
 
@@ -9,6 +9,7 @@ import { OnionPane, Pane } from "../pane";
 import { blendOpacities } from "./blend";
 import { BlendSlider } from "./blend-slider";
 import { ChangesPanel } from "./changes-panel";
+import { measureCompareShown } from "./compare-shown";
 import { LockPill } from "./lock-pill";
 import { ModeSwitch } from "./mode-switch";
 import { OnionKey } from "./onion-key";
@@ -42,6 +43,21 @@ export function SheetCompare({ sheetId, from, to }: SheetCompareProps) {
   // A new detection numbers its regions afresh.
   useEffect(() => setSelectedId(null), [changes]);
   const [mode, setModeState] = useState<CompareMode>("side");
+
+  /* When this comparison was asked for, and how many panes have shown all of
+     level 0. Side by side needs both; the onion draws both revisions at once. */
+  const shown = useRef({ start: performance.now(), panes: 0, done: false });
+  useEffect(() => {
+    shown.current = { start: performance.now(), panes: 0, done: false };
+  }, [sheetId, from, to]);
+  const onShown = useCallback(() => {
+    const s = shown.current;
+    if (s.done) return;
+    s.panes += 1;
+    if (s.panes < (mode === "onion" ? 1 : 2)) return;
+    s.done = true;
+    measureCompareShown(s.start, { sheetId, from, to });
+  }, [mode, sheetId, from, to]);
   const [blend, setBlend] = useState(50);
   const [lockedSetting, setLocked] = useState(true);
 
@@ -110,6 +126,7 @@ export function SheetCompare({ sheetId, from, to }: SheetCompareProps) {
                 view={views.to}
                 setView={setters.to}
                 onResize={setPaneSize}
+                onShown={onShown}
               />
               <OnionKey from={from} to={to} />
               <ZoomBar view={views.to} onZoom={zoomBoth} onFit={fitBoth} onLockedChange={setLocked}>
@@ -126,6 +143,7 @@ export function SheetCompare({ sheetId, from, to }: SheetCompareProps) {
                 view={views.from}
                 setView={setters.from}
                 onResize={setPaneSize}
+                onShown={onShown}
               />
               <Pane
                 pyramid={pyramids.to}
@@ -134,6 +152,7 @@ export function SheetCompare({ sheetId, from, to }: SheetCompareProps) {
                 selectedId={selectedId}
                 view={views.to}
                 setView={setters.to}
+                onShown={onShown}
               />
               <LockPill locked={locked} onLockedChange={setLocked} />
               <ZoomBar

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 
+import { coarsestLevel } from "../pyramid";
 import { useViewInput } from "../view";
 
 import { drawOnion } from "./onion";
@@ -16,7 +17,7 @@ function tint(el: HTMLElement, name: string) {
 
 /* Both revisions on one canvas, each in its own colour, blended by the
    slider. Draws from the shared view and writes to it like a pane does. */
-export function OnionPane({ from, to, opacity, view, setView, onResize, regions, selectedId }: OnionPaneProps) {
+export function OnionPane({ from, to, opacity, view, setView, onResize, regions, selectedId, onShown }: OnionPaneProps) {
   const { host, size } = useStage(onResize);
   const canvas = useRef<HTMLCanvasElement>(null);
   const scratch = useRef<{ from: HTMLCanvasElement; to: HTMLCanvasElement } | null>(null);
@@ -24,9 +25,10 @@ export function OnionPane({ from, to, opacity, view, setView, onResize, regions,
   const colours = useRef<{ from: string; to: string } | null>(null);
   const frame = useRef(0);
   const style = useRef<RegionStyle | null>(null);
+  const shown = useRef(false);
 
-  const latest = useRef({ view, size, opacity, regions, selectedId });
-  latest.current = { view, size, opacity, regions, selectedId };
+  const latest = useRef({ view, size, opacity, regions, selectedId, onShown });
+  latest.current = { view, size, opacity, regions, selectedId, onShown };
 
   useViewInput(host, setView);
 
@@ -57,6 +59,15 @@ export function OnionPane({ from, to, opacity, view, setView, onResize, regions,
     sets.from.keepLevels(kept.from);
     sets.to.keepLevels(kept.to);
     if (style.current) drawRegions(ctx, regions, selectedId, view, dpr, style.current);
+
+    if (
+      !shown.current &&
+      sets.from.holds(coarsestLevel(from.index.levels)) &&
+      sets.to.holds(coarsestLevel(to.index.levels))
+    ) {
+      shown.current = true;
+      latest.current.onShown?.();
+    }
   }, [from, to]);
 
   const schedule = useCallback(() => {
@@ -81,6 +92,7 @@ export function OnionPane({ from, to, opacity, view, setView, onResize, regions,
   useEffect(() => {
     const sets = { from: new TileSet(from.ref, schedule), to: new TileSet(to.ref, schedule) };
     tiles.current = sets;
+    shown.current = false;
     schedule();
     return () => {
       cancelAnimationFrame(frame.current);
