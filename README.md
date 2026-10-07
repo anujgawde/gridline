@@ -14,10 +14,10 @@ Gridline is a frontend built for that job. It renders very large drawing sets in
 
 Four microfrontends, composed at runtime with Rspack Module Federation 2.0:
 
-- **Shell** — routing, layout, loading the other apps, offline banner
-- **Viewer** — renders one sheet from tiles, with pan, zoom and a markup overlay
-- **Navigator** — a scrollable thumbnail grid of the whole set, with discipline filters
-- **Compare** — the difference between two revisions, with an onion-skin blend and synced zoom
+- **Shell** — routing, layout, and loading the other apps at runtime
+- **Viewer** — renders one sheet from tiles, with pan and zoom
+- **Navigator** — a virtualised thumbnail grid of the whole set, with discipline filters
+- **Compare** — two revisions of a sheet side by side or blended, with locked zoom and the changes between them found, boxed and listed
 
 The apps never import each other. They communicate only through an event bus in the shared platform package, and every message is validated with zod. There is no shared mutable state.
 
@@ -67,14 +67,15 @@ Both checks run against `pnpm serve`, a dependency-free static file server over 
 | ----------- | --------------------------------------------------------------------- |
 | Framework   | React 19 + TypeScript (strict)                                        |
 | Federation  | Rspack Module Federation 2.0                                          |
-| Rendering   | Canvas 2D + OffscreenCanvas                                           |
-| PDF parse   | pdf.js in a dedicated worker                                          |
-| State       | Zustand (per-MFE) + shared platform store                             |
-| Styling     | Tailwind + CSS custom properties from platform                        |
+| Rendering   | Canvas 2D, from tile pyramids built offline                           |
+| PDF parse   | pdf.js, in the `fullpage` baseline renderer only                      |
+| Workers     | Change detection in Compare, on `OffscreenCanvas`                     |
+| State       | React state per app; the event bus between apps                       |
+| Styling     | Plain CSS over design tokens published by platform                    |
 | Persistence | The browser's own HTTP cache for tiles; IndexedDB planned for markups |
 | Network     | Mock Service Worker (MSW) — no backend                                |
 | Input       | Hand-rolled gesture layer over Pointer Events                         |
-| Testing     | Vitest (unit) + Playwright (e2e + perf traces)                        |
+| Testing     | Vitest (unit) + Playwright (performance and correctness specs)        |
 
 ## No backend
 
@@ -84,20 +85,19 @@ Gridline has no API server, database or BFF. All network traffic is handled in t
 
 ```
 gridline/
-├─ packages/platform/    # @gridline/platform — tokens, UI primitives, event bus, stores
+├─ packages/platform/    # @gridline/platform — tokens, UI primitives, event bus
 ├─ apps/
 │  ├─ shell/             # Host app
 │  ├─ viewer/            # Sheet rendering remote
-│  ├─ navigator/         # Set browsing remote (in progress)
-│  └─ compare/           # Revision diff remote (in progress)
+│  ├─ navigator/         # Set browsing remote
+│  └─ compare/           # Revision compare remote
 ├─ tools/
 │  ├─ serve.mjs          # Static file server for the production builds
 │  ├─ setgen/            # Synthetic drawing-set generator
 │  └─ tiler/             # PDF → tile pyramid pipeline
-└─ docs/adr/             # Architecture decision records (planned)
+├─ tests/perf/           # Playwright specs and their gates
+└─ docs/perf/            # Measured results, one file per app
 ```
-
-Entries marked planned do not exist yet.
 
 ## Test data
 
@@ -118,7 +118,7 @@ pnpm setgen
 
 ## Performance
 
-All figures come from committed Playwright specs, run on one machine. Full results, including what they do not show, are in [`docs/perf/viewer.md`](docs/perf/viewer.md).
+All figures come from committed Playwright specs, run on one machine. Full results, including what they do not show, are in [`docs/perf/viewer.md`](docs/perf/viewer.md), [`docs/perf/navigator.md`](docs/perf/navigator.md) and [`docs/perf/compare.md`](docs/perf/compare.md). The viewer's figures are below.
 
 Test conditions:
 
@@ -169,6 +169,29 @@ The 84 ms revisit figure is a median over two groups. Sheets that still hold the
 
 Revisit time depends on which group the three sampled sheets fall in. Prefetched sheets share the coarse tier with visited ones, so visited sheets are evicted sooner: it read 98 ms before prefetch, 112 ms after, and 84 ms in the latest runs.
 
+### Compare
+
+Change detection runs in a worker and never blocked the page: no long task in any of 24 opens. Warm, detection takes 787 ms, most of it starting the worker; cold, 4.8 s, most of it downloading two revisions' tiles. Across all 64 reissues in the set, every changed tile is covered by a detected region. Details, and what the worker costs, are in [`docs/perf/compare.md`](docs/perf/compare.md).
+
+## Diagnostic switches
+
+These exist to measure the app or to show a failure on purpose. **They are not features.** Each makes the app slower, emptier or broken in a known way, so that a baseline can be compared or a performance gate can be seen to fail. Do not use them outside that purpose.
+
+| Switch | App | What it does |
+| ------ | --- | ------------ |
+| `?renderer=fullpage` | Viewer | The naive renderer: parses the whole PDF before drawing. Kept as the baseline. |
+| `?prefetch=0` | Viewer | Turns off reading neighbouring sheets ahead. |
+| `?perf=1` | Viewer | Shows a cache readout over the drawing. |
+| `?grid=full` | Navigator | Draws every card instead of only the visible rows. Kept as the baseline. |
+| `?thumbs=0` | Navigator | No thumbnails. |
+| `?break=lookup` | Shell | Fails the remote lookup, to show the shell degrading. |
+| `?detect=main` | Compare | Runs change detection on the page's thread instead of the worker. |
+| `?detectLevel=3` | Compare | Diffs four times the pixels. |
+
+The specs take environment variables of the same kind. `PERF_RUNS`, `PERF_SHEET`, `PERF_SHEETS` and `PERF_SHEET_TIMEOUT` size a run; `PERF_RENDERER`, `PERF_WALK`, `PERF_PREFETCH`, `PERF_GRID`, `PERF_THUMBS`, `PERF_DETECT` and `PERF_DETECT_LEVEL` select the switches above or a reading pattern; `PERF_JANK=1` injects an 80 ms main-thread stall to show a gate failing. A run with a switch on writes its own results file and never replaces a baseline reading.
+
+The real addresses are `?sheet=`, `?view=sheets` and `?view=compare&sheet=…&from=…&to=…`.
+
 ## Status
 
 Pre-alpha.
@@ -176,9 +199,10 @@ Pre-alpha.
 **Built**
 
 - Platform package: design tokens, the event bus, and eleven UI primitives.
-- Shell: renders its chrome from the tokens and loads the viewer and the navigator at runtime. Active-sheet state crosses the bus between them.
-- Navigator: all 1,500 sheets in a virtualised grid with thumbnails and discipline filters (`?view=sheets`), and as a list beside the drawing. A click opens a sheet; the grid also moves by arrow key and opens on Enter, and beside a drawing Shift+Up and Shift+Down step through the set.
-- All three apps run from their production builds on separate origins.
+- Shell: renders its chrome from the tokens and loads the viewer, the navigator and compare at runtime. Active-sheet state crosses the bus between them, and the shell decides which app is on screen.
+- Navigator: all 1,500 sheets in a virtualised grid with thumbnails and discipline filters (`?view=sheets`), and as a list beside the drawing. A click opens a sheet; the grid also moves by arrow key and opens on Enter, and beside a drawing Shift+Up and Shift+Down step through the set. A reissued sheet shows its revision, and the badge opens a comparison.
+- Compare: two revisions side by side with locked zoom, or blended as an onion skin. Changes are found by a pixel diff in a worker, boxed on the drawing and listed in a panel; N and P step through them.
+- All four apps run from their production builds on separate origins.
 - The synthetic drawing set generator.
 - `tools/tiler`, which builds the tile pyramid offline.
 - Viewer: picks a tile level from the viewport, keeps memory within two budgets, and prefetches neighbouring sheets while the network is idle. Includes a canvas toolbar, a properties panel, and a cache readout behind `?perf=1`.
@@ -190,9 +214,9 @@ Pre-alpha.
 
 **Not built yet**
 
-- Deep zoom past the pre-rendered levels, blocked because a worker script must share the page's origin
-- Revision diffing in the compare remote, which so far is a skeleton the shell can load
+- Deep zoom past the pre-rendered levels. Its worker is written but was never compiled; Compare's worker shows the fix, which is not yet applied to the viewer
 - Markup
+- Opening a change from Compare in the drawing, planned alongside markup
 - Per-app deployment pipelines
 
 ## License
