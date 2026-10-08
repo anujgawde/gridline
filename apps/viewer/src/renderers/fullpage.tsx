@@ -41,7 +41,8 @@ async function loadPdfjs() {
 
   /* Forces pdf.js onto the main thread. PDFWorker checks this global before
      starting a real worker and falls back to a loopback port when it is set.
-     The tiled renderer sets GlobalWorkerOptions.workerSrc instead. */
+     The deep-zoom worker sets it too, so pdf.js runs inside that worker
+     rather than starting one of its own. */
   (globalThis as Record<string, unknown>).pdfjsWorker = await import(
     // @ts-expect-error -- the worker build ships without type declarations
     "pdfjs-dist/build/pdf.worker.mjs"

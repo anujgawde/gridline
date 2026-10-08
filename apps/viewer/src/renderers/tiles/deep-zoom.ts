@@ -1,3 +1,4 @@
+import { RemoteWorker } from "./remote-worker";
 import type { TileIndex } from "./types";
 
 /* Rendering past the deepest pre-rendered level, from the sheet's own PDF.
@@ -52,7 +53,6 @@ export function needsDeepZoom(index: TileIndex, scale: number) {
    and the only one that matters is the one for where the viewport is now. */
 export class DeepZoomRenderer {
   #worker: Worker | null = null;
-  #bootstrapUrl: string | null = null;
   #pending: number | null = null;
   #nextId = 0;
 
@@ -64,35 +64,24 @@ export class DeepZoomRenderer {
   #ensureWorker() {
     if (this.#worker) return this.#worker;
 
-    /* Created on first use, so the pdf.js bundle is not fetched until someone
+    /* Created on first use, so the pdf.js chunk is not fetched until someone
        actually zooms past the pyramid. Most sessions never will.
 
-       The blob is not a convenience. A worker script must be same-origin as the
-       *document*, and this remote is served from its own origin but runs inside
-       the shell's page — so `new Worker("http://localhost:4101/...")` is refused
-       outright, and no CORS header changes that. The workaround is a tiny
-       same-origin module that imports the real one: a blob URL inherits the
-       document's origin, and a dynamic import from it resolves absolutely, so
-       the worker's own chunks still load from the remote that owns them.
-
-       This is a constraint any federated remote shipping a worker meets. */
-    const href = new URL("./deep-zoom.worker.ts", import.meta.url).href;
-    const bootstrap = URL.createObjectURL(
-      new Blob([`import ${JSON.stringify(href)};`], {
-        type: "text/javascript",
-      }),
+       RemoteWorker, not Worker: this remote runs inside the shell's page, and a
+       worker script must be same-origin with the page. The URL has to stay
+       written inline, inside the constructor call, or Rspack never sees it as
+       a worker and copies the .ts file across uncompiled. */
+    this.#worker = new RemoteWorker(
+      new URL("./deep-zoom.worker.ts", import.meta.url),
     );
-
-    this.#worker = new Worker(bootstrap, { type: "module" });
-    this.#bootstrapUrl = bootstrap;
-    /* Revoked when the worker is torn down, not here. The worker fetches the
-       blob asynchronously, so revoking synchronously after construction pulls
-       the script out from under it — and the failure arrives as an ErrorEvent
-       with no message, which says nothing about the cause. */
 
     this.#worker.addEventListener(
       "message",
       (event: MessageEvent<DeepZoomResult & { id: number; error?: string }>) => {
+        /* pdf.js's worker build attaches itself to any worker it is loaded
+           into and announces "ready" to the page. Only replies to a request
+           carry an id; anything else is not ours. */
+        if (typeof event.data?.id !== "number") return;
         if (event.data.error) {
           console.error(
             `[viewer] deep zoom failed: ${event.data.error}`,
@@ -133,8 +122,6 @@ export class DeepZoomRenderer {
   destroy() {
     this.#worker?.terminate();
     this.#worker = null;
-    if (this.#bootstrapUrl) URL.revokeObjectURL(this.#bootstrapUrl);
-    this.#bootstrapUrl = null;
     this.#pending = null;
   }
 }

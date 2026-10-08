@@ -5,7 +5,12 @@
    between requests because someone zooming around one sheet will ask repeatedly,
    and re-parsing a 28 KB PDF each time would be the same mistake in miniature. */
 
+// First: every chunk loaded after this resolves against the viewer's origin.
+import "./worker-public-path";
+
 import type { PDFDocumentProxy } from "pdfjs-dist";
+
+import { OffscreenCanvasFactory } from "./offscreen-canvas-factory";
 
 interface Request {
   id: number;
@@ -23,14 +28,39 @@ let pdfjs: typeof import("pdfjs-dist") | null = null;
 let openFile: string | null = null;
 let doc: PDFDocumentProxy | null = null;
 
+async function loadPdfjs() {
+  const library = await import("pdfjs-dist");
+  /* pdf.js would otherwise start a worker of its own, from a script on this
+     remote's origin, and meet the same-origin rule all over again. With this
+     global set it runs its worker half here, in this thread, which is already
+     off the main one. */
+  (globalThis as Record<string, unknown>).pdfjsWorker = await import(
+    // @ts-expect-error -- the worker build ships without type declarations
+    "pdfjs-dist/build/pdf.worker.mjs"
+  );
+  return library;
+}
+
 async function ensureDocument(baseUrl: string, file: string) {
-  pdfjs ??= await import("pdfjs-dist");
+  pdfjs ??= await loadPdfjs();
 
   if (openFile === file && doc) return doc;
 
   await doc?.cleanup();
-  /* One sheet's own PDF — about 28 KB — not the 42 MB set. */
-  doc = await pdfjs.getDocument({ url: `${baseUrl}/sheets/${file}` }).promise;
+  /* One sheet's own PDF — about 28 KB — not the 42 MB set.
+
+     Three of pdf.js's defaults assume a page. A string URL is resolved
+     against `window.location`, so the URL goes in already absolute. Scratch
+     canvases come from `document`, so the factory makes OffscreenCanvas.
+     Fonts are added to `document.fonts`, and a worker has its own FontFaceSet,
+     which is where text drawn on an OffscreenCanvas here looks them up. */
+  doc = await pdfjs.getDocument({
+    url: new URL(`${baseUrl}/sheets/${file}`),
+    CanvasFactory: OffscreenCanvasFactory,
+    // Only `fonts` is read once CanvasFactory is replaced; the type wants a
+    // whole Document.
+    ownerDocument: { fonts: (self as unknown as Document).fonts } as Document,
+  }).promise;
   openFile = file;
   return doc;
 }
