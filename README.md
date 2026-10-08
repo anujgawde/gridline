@@ -68,8 +68,8 @@ Both checks run against `pnpm serve`, a dependency-free static file server over 
 | Framework   | React 19 + TypeScript (strict)                                        |
 | Federation  | Rspack Module Federation 2.0                                          |
 | Rendering   | Canvas 2D, from tile pyramids built offline                           |
-| PDF parse   | pdf.js, in the `fullpage` baseline renderer only                      |
-| Workers     | Change detection in Compare, on `OffscreenCanvas`                     |
+| PDF parse   | pdf.js: the `fullpage` baseline, and a worker past the deepest tiles  |
+| Workers     | Compare's change detection, the viewer's deep zoom; `OffscreenCanvas` |
 | State       | React state per app; the event bus between apps                       |
 | Styling     | Tailwind over platform's design tokens; viewer wired, others follow   |
 | Persistence | The browser's own HTTP cache for tiles; IndexedDB planned for markups |
@@ -214,7 +214,6 @@ Pre-alpha.
 
 **Not built yet**
 
-- Deep zoom past the pre-rendered levels. Its worker is written but was never compiled; Compare's worker shows the fix, which is not yet applied to the viewer
 - Markup
 - Opening a change from Compare in the drawing, planned alongside markup
 - Per-app deployment pipelines

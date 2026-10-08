@@ -29,7 +29,10 @@ Pre-alpha. The workspace packages:
   `./SheetSurface` and also runs standalone on port 4101. A sheet opens at
   its latest revision, which the viewer reads from the sheet index rather
   than being told; the full-page renderer draws the combined PDF, the set as
-  first issued, and says REV 1.
+  first issued, and says REV 1. Past the deepest tile level, the tiled
+  renderer draws the visible region from the sheet's own PDF with pdf.js in a
+  worker, started through `RemoteWorker` like compare's; pdf.js loads only
+  then, never on the cold path.
 - **`apps/navigator`** — `@gridline/navigator`. The second remote. Exposes
   `./SetNavigator` with two layouts: `grid`, the whole set full-screen
   (`?view=sheets` in the shell), and `panel`, beside the drawing. Runs standalone

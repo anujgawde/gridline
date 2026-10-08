@@ -82,9 +82,10 @@ pnpm serve           # shell 4100, viewer 4101, sheet set 4200 — all paced
 pnpm perf            # in a second terminal
 ```
 
-Four specs run. `baseline.spec.ts` is a cold load of one sheet.
+Five specs run. `baseline.spec.ts` is a cold load of one sheet.
 `session.spec.ts` is the one that matters: a person moving through the set.
 `interaction.spec.ts` covers pan and zoom on a sheet already open.
+`deep-zoom.spec.ts` zooms past the pyramid and times the sharp render.
 `storage-probe.spec.ts` grades nothing — it times where a tile comes from after
 a reload, and exists because a scope decision rested on the answer.
 
@@ -310,9 +311,10 @@ a URL rather than a commit someone has to check out.
   rasterized in one pass at 4000px wide. What you write before you know the
   document is too big for it.
 - **`tiled`** — tiles from a pyramid built offline by `tools/tiler`, the level
-  chosen from the current scale, held in a byte-budgeted cache. Deep zoom past
-  the deepest pre-rendered level is not wired up; the renderer reports
-  `data-needs-deep` where it would be used.
+  chosen from the current scale, held in a byte-budgeted cache. Past the
+  deepest pre-rendered level, the visible region is drawn from the sheet's own
+  PDF by pdf.js in a worker, which loads the first time someone zooms that far
+  and not before. See "Deep zoom" below.
 
 ## Cold start
 
@@ -395,6 +397,12 @@ Re-taken after the navigator landed. The previous reading of the same spec was
 changed in between, so this is recorded as an observation from one session, not
 claimed as a result; the gates were left at the earlier readings until a second
 session agrees.
+
+**A second session agreed on 2026-10-07**, re-taken after deep zoom landed:
+`zoomDeepening` settle p95 66 ms (63–67) and median 51 ms, frame p95 21 ms,
+worst frame 23 ms, 0 ms blocked; `zoomSteady` and `pan` within the same
+spreads. The gates in `budgets.ts` still sit at the older, slower readings
+and have not been tightened yet.
 
 **The gesture layer costs nothing measurable.** Panning and zooming inside
 cached scale block the main thread for 0 ms across the whole gesture. Crossing
@@ -502,6 +510,27 @@ Two cold-start gates were re-derived when the panel landed: first sheet on
 canvas to 11 940 ms from 9549 (8987–9577), and main-thread block to 306 ms from
 the worst of 133–245, which the old 200 ms gate sat under.
 
+## Deep zoom
+
+Past level 3 the pyramid has nothing sharper, so the visible region is
+rendered from the sheet's own ~28 KB PDF by pdf.js, in a worker, and painted
+over the stretched tiles when it arrives. `deep-zoom.spec.ts` asserts that
+pdf.js stays off the cold path (opening a sheet and panning within the pyramid
+starts no worker and fetches no PDF) and records two spans, each from the view
+needing a deep render to one being on screen:
+
+| Span | Median (range) | Longest task in the span |
+|---|---|---|
+| Cold: first deep zoom in a session | 5650 ms (5648–5650) | 0 ms |
+| Warm: worker and document kept | 34 ms (34–35) | 0 ms |
+
+Median of 3 runs on A-101. pdf.js was not touched before the zoom in any run.
+Cold is almost all the pdf.js chunks crossing the throttled link, about 1.5 MB
+against the sheet's 28 KB PDF; warm is the render itself. Neither span blocks
+the page. Building it moved no other reading: `interaction` and the stride
+`session` re-taken the same day match the tables above within their spreads.
+No gate yet: these are the first readings.
+
 ## To be measured
 
 | What | Status |
@@ -509,7 +538,7 @@ the worst of 133–245, which the old 200 ms gate sat under.
 | Pinch-zoom input to paint | Measured — see Interaction above |
 | Tile cache hit rate | Measured — 67% on revisits, see below |
 | Warm start after a reload | Measured — `storage-probe.spec.ts` |
-| Zoom image quality past rasterized resolution | Not started |
+| Zoom image quality past rasterized resolution | Deep zoom built — see Deep zoom above |
 | Bundle size per remote | Not started |
 | Slow 3G and LTE connection profiles | Not started |
 
