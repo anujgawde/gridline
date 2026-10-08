@@ -51,7 +51,10 @@ export default defineConfig({
           },
         },
       },
-      { test: /\.css$/, type: "css/auto" },
+      // Only the Tailwind entry goes through PostCSS, so every other stylesheet
+      // compiles exactly as it did before Tailwind was wired.
+      { test: /tailwind\.css$/, use: ["postcss-loader"], type: "css/auto" },
+      { test: /\.css$/, exclude: /tailwind\.css$/, type: "css/auto" },
     ],
   },
   plugins: [

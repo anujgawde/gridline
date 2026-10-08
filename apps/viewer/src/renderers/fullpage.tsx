@@ -174,7 +174,7 @@ export function FullPageRenderer({
         }}
       />
       {state !== "painted" && (
-        <p className="viewer-render-message">
+        <p className="type-caption text-fg-tertiary">
           {state === "loading" ? `Opening ${sheetId}…` : `${sheetId} unavailable`}
         </p>
       )}

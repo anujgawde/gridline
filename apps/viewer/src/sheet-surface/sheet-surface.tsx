@@ -27,6 +27,7 @@ import type { SheetSurfaceProps } from "./types";
 import "@gridline/platform/ui.css";
 import "../chrome/chrome.css";
 import "./sheet-surface.css";
+import "../tailwind.css";
 
 interface Ready {
   source: SheetSource;
@@ -150,7 +151,7 @@ export function SheetSurface({ sheetId }: SheetSurfaceProps) {
   if (!resolved) {
     return (
       <div className="viewer-surface">
-        <p className="viewer-render-message">Locating sheet set…</p>
+        <p className="type-caption text-fg-tertiary">Locating sheet set…</p>
       </div>
     );
   }
@@ -158,7 +159,7 @@ export function SheetSurface({ sheetId }: SheetSurfaceProps) {
   if (!ready) {
     return (
       <div className="viewer-surface">
-        <p className="viewer-render-message">Sheet set unavailable</p>
+        <p className="type-caption text-fg-tertiary">Sheet set unavailable</p>
       </div>
     );
   }

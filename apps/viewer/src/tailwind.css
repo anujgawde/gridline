@@ -1,0 +1,10 @@
+/* The viewer's only Tailwind entry, compiled by postcss-loader and nothing else.
+   Preflight is left out while the older stylesheets remain: its reset would
+   restyle them from underneath. Those stylesheets are unlayered, so they also
+   beat any utility that sets the same property on the same element.
+   source(none) plus @source limits class scanning to src/, never dist/. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "@gridline/platform/theme.css";
+@source "./";

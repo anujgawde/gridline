@@ -539,7 +539,7 @@ export function TiledRenderer({
     >
       <canvas ref={canvasRef} className="viewer-canvas" />
       {paintedSheet !== sheetId && (
-        <p className="viewer-render-message">
+        <p className="type-caption text-fg-tertiary">
           {failedSheet === sheetId
             ? `${sheetId} unavailable`
             : `Opening ${sheetId}…`}

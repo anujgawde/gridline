@@ -65,8 +65,3 @@
 .viewer-render[data-state="failed"] .viewer-canvas {
   display: none;
 }
-
-.viewer-render-message {
-  font: var(--type-caption);
-  color: var(--text-tertiary);
-}
