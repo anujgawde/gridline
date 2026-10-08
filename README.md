@@ -71,7 +71,7 @@ Both checks run against `pnpm serve`, a dependency-free static file server over 
 | PDF parse   | pdf.js, in the `fullpage` baseline renderer only                      |
 | Workers     | Change detection in Compare, on `OffscreenCanvas`                     |
 | State       | React state per app; the event bus between apps                       |
-| Styling     | Plain CSS over design tokens published by platform                    |
+| Styling     | Tailwind over platform's design tokens; viewer wired, others follow   |
 | Persistence | The browser's own HTTP cache for tiles; IndexedDB planned for markups |
 | Network     | Mock Service Worker (MSW) — no backend                                |
 | Input       | Hand-rolled gesture layer over Pointer Events                         |

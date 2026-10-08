@@ -8,8 +8,9 @@ architecture thesis about rendering, memory, and microfrontend boundaries.
 Pre-alpha. The workspace packages:
 
 - **`packages/platform`** — `@gridline/platform`. Design tokens as CSS custom
-  properties, the event bus with its zod contracts, and the UI primitives under
-  `./ui` with their stylesheet at `./ui.css`. Takes React, so that the
+  properties, their Tailwind theme at `./theme.css`, the event bus with its zod
+  contracts, and the UI primitives under `./ui` with their stylesheet at
+  `./ui.css`. Takes React, so that the
   primitives can be components; the version comes from the catalog like every
   other copy.
 - **`apps/shell`** — `@gridline/shell`. Rspack + React. Renders the chrome from
@@ -107,10 +108,11 @@ viewer calls, not a full library.
 | `pnpm test` | Vitest per package |
 | `pnpm setgen` | Generate the synthetic drawing set into `data/sets/v1` |
 | `pnpm perf` | Playwright performance specs against the running static servers |
-| `pnpm typecheck` | `tsc --noEmit` per package |
+| `pnpm typecheck` | `tsc --noEmit` per package, then over `tests/perf` |
 | `pnpm lint` | Not configured yet — no-op |
 
-`build` and `typecheck` run in 5 packages; `test` runs in `compare`, `navigator`,
+`build` and `typecheck` run in 5 packages, and `typecheck` also checks the perf
+specs, which belong to no package; `test` runs in `compare`, `navigator`,
 `platform`, `setgen`, `tiler` and `viewer`. `pnpm setgen` is not a Turborepo task — it is run by hand, writes
 outside any package's `dist/`, and takes about 20 seconds, so it has no business
 in a build graph.
@@ -207,6 +209,27 @@ space around it, or does it guarantee a physical dimension?
 
 Token values carry their px equivalent in a comment, so any of them can still be
 checked against the design mockups.
+
+### Styling
+
+New UI is styled with Tailwind utilities, and the utilities come only from
+`@gridline/platform/theme.css`. That theme clears Tailwind's own scales, so
+`p-4` resolves to `var(--space-4)` while `text-sm` or `bg-blue-500` generate
+nothing: a raw value cannot be written as a class either. Type is set with one
+utility per composite style (`type-caption`, `type-data`, …), never a size alone.
+
+- **Each app compiles its own Tailwind entry**, `src/tailwind.css`, imported by
+  the module it exposes, and only that file goes through PostCSS. The viewer
+  is wired; the other apps are not yet.
+- **No preflight while older stylesheets remain.** Its reset would restyle them
+  from underneath.
+- **Unlayered CSS beats utilities.** The older stylesheets are unlayered and
+  Tailwind's output sits in `@layer utilities`, so an old rule wins on any
+  property both set, whatever the specificity. Moving an element to utilities
+  means deleting its old rule in the same change.
+- **Utilities are global across apps.** A remote's stylesheet lands in the
+  shell's page. That is safe because every app compiles the catalog's Tailwind
+  against the same theme, so a class means the same thing in all four.
 
 ## Architecture rules
 
