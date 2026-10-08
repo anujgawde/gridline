@@ -2,6 +2,15 @@
    `inline` is required: it makes utilities emit var(--surface-chrome) rather than
    resolving to a hex at build time, so [data-theme="light"] still switches at
    runtime and a token change does not force every remote to rebuild. */
+
+/* Tailwind's own scales are cleared, so the only utilities that exist are the
+   ones mapped to a token below. text-sm, rounded-xl and bg-blue-500 generate
+   nothing, which keeps the no-raw-lengths rule true for class names too.
+   Breakpoints go with them: add breakpoint tokens before the first md:. */
+@theme {
+  --*: initial;
+}
+
 @theme inline {
   /* Text colours map to --color-fg-* rather than --color-text-*, because
      Tailwind's --text-* namespace is font-size; --text-primary there would
@@ -85,7 +94,9 @@
      emits the key into :root, so --radius-1: var(--radius-1) is a CSS cycle and
      resolves to nothing. Hence --font-sans over --font-ui, --radius-sm over
      --radius-1, --shadow-elev-* over --shadow-*. Colours are safe because
-     --color-surface-chrome already differs from --surface-chrome. */
+     --color-surface-chrome already differs from --surface-chrome. Motion is
+     unmapped for the same reason: --ease-out is a token and a Tailwind key, so
+     it needs a distinct key on this side when a transition first wants it. */
 
   /* families — mapping onto Tailwind's own keys also corrects the default
      font-family that preflight applies to html. */
@@ -143,3 +154,19 @@
   --shadow-elev-toast: var(--shadow-toast);
   --inset-shadow-input: var(--shadow-inset-input);
 }
+
+/* Type is set in the design system's composite styles, never as a size alone:
+   a font size without its paired line height and weight is how a type scale
+   drifts. Hence no --text-* keys, and one utility per composite instead. */
+@utility type-micro { font: var(--type-micro); }
+@utility type-caption { font: var(--type-caption); }
+@utility type-body { font: var(--type-body); }
+@utility type-body-strong { font: var(--type-body-strong); }
+@utility type-control { font: var(--type-control); }
+@utility type-title { font: var(--type-title); }
+@utility type-section { font: var(--type-section); }
+@utility type-view { font: var(--type-view); }
+@utility type-display { font: var(--type-display); }
+@utility type-data { font: var(--type-data); }
+@utility type-data-sm { font: var(--type-data-sm); }
+@utility type-data-lg { font: var(--type-data-lg); }
