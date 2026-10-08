@@ -17,15 +17,16 @@ export function summarize(values: (number | null)[]): Stat {
   if (present.length === 0) {
     return { median: null, min: null, max: null, samples: 0 };
   }
+  // The empty case returned above, so every index below is in range.
   const mid = Math.floor(present.length / 2);
   const median =
     present.length % 2 === 0
-      ? (present[mid - 1] + present[mid]) / 2
-      : present[mid];
+      ? (present[mid - 1]! + present[mid]!) / 2
+      : present[mid]!;
   return {
     median: Math.round(median),
-    min: Math.round(present[0]),
-    max: Math.round(present[present.length - 1]),
+    min: Math.round(present[0]!),
+    max: Math.round(present[present.length - 1]!),
     samples: present.length,
   };
 }

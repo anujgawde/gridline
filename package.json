@@ -11,10 +11,11 @@
     "serve": "turbo run serve",
     "setgen": "node tools/setgen/setgen.mjs",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck && tsc -p tests/perf"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@types/node": "^24.10.0",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0",
     "vitest": "^5.0.2"

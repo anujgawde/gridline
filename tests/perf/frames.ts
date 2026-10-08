@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { CDPSession, Page } from "@playwright/test";
 
 /* Frame intervals during interaction.
    
@@ -47,9 +47,10 @@ export async function stopFrameRecording(page: Page): Promise<FrameSummary> {
   const measured = gaps.slice(1).sort((a, b) => a - b);
   if (measured.length === 0) return { p95Ms: 0, worstMs: 0, frames: 0 };
 
+  // The empty case returned above, so both indices are in range.
   return {
-    p95Ms: Math.round(measured[Math.floor(measured.length * 0.95)]),
-    worstMs: Math.round(measured[measured.length - 1]),
+    p95Ms: Math.round(measured[Math.floor(measured.length * 0.95)]!),
+    worstMs: Math.round(measured[measured.length - 1]!),
     frames: measured.length,
   };
 }
@@ -129,7 +130,7 @@ export type PinchMode =
 
 export async function pinch(
   page: Page,
-  client: { send: (method: string, params?: unknown) => Promise<unknown> },
+  client: CDPSession,
   { steps = 60, mode = "oscillate" }: { steps?: number; mode?: PinchMode } = {},
 ) {
   const box = await page.locator("[data-renderer]").boundingBox();

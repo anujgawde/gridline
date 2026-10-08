@@ -113,7 +113,7 @@ test(`${RENDERER} renderer — a ${WALK} session across the set`, async ({
   const visits =
     WALK === "sequential"
       ? all.slice(0, SHEETS).map((sheet) => sheet.sheetId)
-      : Array.from({ length: SHEETS }, (_, i) => all[i * stride].sheetId);
+      : Array.from({ length: SHEETS }, (_, i) => all[i * stride]!.sheetId);
 
   const context = await browser.newContext({
     viewport: { width: 1600, height: 1000 },
