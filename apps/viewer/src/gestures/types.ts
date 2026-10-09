@@ -32,6 +32,11 @@ export interface Velocity {
   vy: number;
 }
 
+/* What one pointer on its own does. "pass" leaves it to someone else — a
+   drawing tool — while two pointers still pinch and the wheel still zooms, so
+   the sheet can be navigated mid-markup without changing tool. */
+export type SinglePointerMode = "pan" | "pass";
+
 export interface PointerPair {
   a: PointerSample;
   b: PointerSample;
@@ -58,4 +63,6 @@ export interface GestureHandle {
   /* Stops momentum where it is. A sheet change calls this, so the new sheet
      does not inherit the previous one's drift. */
   stop(): void;
+  /* Takes effect immediately: a pan in progress stops where it is. */
+  setSinglePointer(mode: SinglePointerMode): void;
 }

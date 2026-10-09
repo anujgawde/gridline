@@ -6,6 +6,7 @@ export type {
   PointerPair,
   PointerSample,
   ScaleLimits,
+  SinglePointerMode,
   Velocity,
 } from "./types";
 export {

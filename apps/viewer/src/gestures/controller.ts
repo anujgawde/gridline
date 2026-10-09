@@ -12,6 +12,7 @@ import type {
   GestureView,
   PointerPair,
   PointerSample,
+  SinglePointerMode,
   Velocity,
 } from "./types";
 
@@ -33,6 +34,7 @@ export class GestureController implements GestureHandle {
   private readonly options: GestureOptions;
 
   private state: GesturePhase = "idle";
+  private singlePointer: SinglePointerMode = "pan";
   private readonly pointers = new Map<number, PointerSample[]>();
   private pinchFrom: PointerPair | null = null;
 
@@ -102,6 +104,11 @@ export class GestureController implements GestureHandle {
     if (this.state === "coasting") this.state = "idle";
   }
 
+  setSinglePointer(mode: SinglePointerMode): void {
+    this.singlePointer = mode;
+    if (mode === "pass" && this.state === "panning") this.state = "idle";
+  }
+
   zoomBy(factor: number, about?: { x: number; y: number }): void {
     const point = about ?? this.centre();
     this.stop();
@@ -160,6 +167,13 @@ export class GestureController implements GestureHandle {
     return { a, b };
   }
 
+  /* A pointer on its own is still tracked under "pass", so a second one
+     landing can start a pinch from both. It just moves nothing, and an idle
+     release has no flick to coast from. */
+  private loneState(): GesturePhase {
+    return this.singlePointer === "pan" ? "panning" : "idle";
+  }
+
   private readonly onPointerDown = (event: PointerEvent): void => {
     /* A new touch cancels momentum. Landing a finger on a sheet that is still
        drifting and having it keep drifting is the clearest way to feel like the
@@ -187,7 +201,7 @@ export class GestureController implements GestureHandle {
       this.state = "pinching";
       this.pinchFrom = this.pair();
     } else {
-      this.state = "panning";
+      this.state = this.loneState();
     }
   };
 
@@ -238,7 +252,7 @@ export class GestureController implements GestureHandle {
         const last = this.latest(id);
         if (last) this.pointers.set(id, [last]);
       }
-      this.state = "panning";
+      this.state = this.loneState();
       this.pinchFrom = null;
       return;
     }
