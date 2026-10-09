@@ -1,4 +1,4 @@
-export type { Box } from "./types";
+export type { Box, MarkupStoreOptions } from "./types";
 export {
   CloudMarkup,
   InkMarkup,
@@ -8,5 +8,6 @@ export {
   RectMarkup,
   TextMarkup,
 } from "./schema";
-export type { MarkupKind } from "./schema";
+export type { MarkupDraft, MarkupKind, MarkupPatch } from "./schema";
 export { bounds, contains, hits, intersects } from "./geometry";
+export { HISTORY_LIMIT, MarkupStore } from "./store";

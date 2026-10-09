@@ -6,3 +6,12 @@ export interface Box {
   w: number;
   h: number;
 }
+
+export interface MarkupStoreOptions {
+  /* The sheet's page rectangle, in points: the quadtree's root. */
+  page: Box;
+  /* Injected so tests are deterministic. Default to crypto.randomUUID and
+     the wall clock. */
+  newId?: () => string;
+  now?: () => Date;
+}

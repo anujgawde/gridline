@@ -63,3 +63,15 @@ export const Markup = z.discriminatedUnion("kind", [
 ]);
 export type Markup = z.infer<typeof Markup>;
 export type MarkupKind = Markup["kind"];
+
+/* Omit over each member of a union, rather than over the union as a whole,
+   which would keep only the fields every kind shares. */
+type OmitEach<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+/* What a tool hands the store. The store assigns identity, numbering, sheet
+   and timestamp, so no tool can get them wrong. */
+export type MarkupDraft = OmitEach<Markup, "id" | "number" | "sheetId" | "createdAt">;
+
+/* What an edit may change: anything but identity, sheet and creation time.
+   Partial distributes over the union, so a patch is per kind. */
+export type MarkupPatch = Partial<MarkupDraft>;
