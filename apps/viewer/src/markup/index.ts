@@ -11,3 +11,5 @@ export {
 export type { MarkupDraft, MarkupKind, MarkupPatch } from "./schema";
 export { bounds, contains, hits, intersects } from "./geometry";
 export { HISTORY_LIMIT, MarkupStore } from "./store";
+export { MarkupLayer, MarkupStores, markupSeedCount } from "./overlay";
+export type { MarkupLayerProps } from "./overlay";
