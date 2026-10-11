@@ -31,3 +31,25 @@ export interface ViewControls {
      arithmetic behind it, which differs between the two renderers. */
   fit(): void;
 }
+
+/* What was just drawn, in enough detail for something else to draw over it in
+   step: the view, the canvas it was drawn into, and the sheet and revision on
+   it. The page size is sheet-space, in points. */
+export interface ViewFrame {
+  sheetId: string;
+  revision: number;
+  view: Viewport;
+  width: number;
+  height: number;
+  pageWidth: number;
+  pageHeight: number;
+}
+
+/* Handed upward by a renderer that can be drawn over. Listeners are called
+   from inside the renderer's own frame, after the tiles, so an overlay that
+   draws in its listener lands in the same frame rather than one behind. */
+export interface ViewSource {
+  /* Null while no sheet is drawn: between sheets, or before the first. */
+  current(): ViewFrame | null;
+  subscribe(listener: (frame: ViewFrame) => void): () => void;
+}

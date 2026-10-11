@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import { useGestures, ZOOM_STEP } from "../../gestures";
 import type { GestureView } from "../../gestures";
-import type { ViewControls } from "../types";
+import type { ViewControls, ViewFrame, ViewSource } from "../types";
 
 import { sheetFile, tileDir } from "../../sources";
 import type { SheetSource } from "../../sources";
@@ -90,6 +91,10 @@ interface Props {
   /* Handed upward the same way, as a getter rather than a value. Only this
      renderer has a tile cache, so only this one offers it. */
   onStatsSource?: (source: TileStatsSource) => void;
+  /* Handed upward once, so an overlay can draw in step with the tiles. */
+  onViewSource?: (source: ViewSource) => void;
+  /* Rendered inside the element the gestures are bound to, over the canvas. */
+  children?: ReactNode;
   /* The sheets either side of this one, in set order. Passed in rather than
      derived here: ordering a set is the index's business, and the renderer has
      no opinion about what makes two sheets adjacent. */
@@ -115,6 +120,8 @@ export function TiledRenderer({
   onPainted,
   onControls,
   onStatsSource,
+  onViewSource,
+  children,
   neighbours,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -124,6 +131,7 @@ export function TiledRenderer({
   const indexRef = useRef<TileIndex | null>(null);
   const viewRef = useRef<ViewState>({ x: 0, y: 0, scale: 0.1 });
   const frameRef = useRef(0);
+  const viewListenersRef = useRef(new Set<(frame: ViewFrame) => void>());
   const deepRef = useRef<DeepZoomRenderer>(null);
   const deepResultRef = useRef<DeepZoomResult | null>(null);
   /* Read through a ref by the loader, which is built once and outlives any
@@ -304,12 +312,34 @@ export function TiledRenderer({
       deepResultRef.current = null;
     }
 
+    /* Last, so whatever draws over the sheet does it after the tiles and in
+       this same frame. An overlay with its own animation frame would trail the
+       sheet by one during a pan, and markup sliding off its ink is the visible
+       failure. */
+    const frame = currentFrame();
+    if (frame) for (const listener of viewListenersRef.current) listener(frame);
+
     setStats({
       ...cache.stats(),
       ...loader.stats(),
       level: target.level,
       scale: view.scale,
     });
+  };
+
+  const currentFrame = (): ViewFrame | null => {
+    const canvas = canvasRef.current;
+    const index = indexRef.current;
+    if (!canvas || !index) return null;
+    return {
+      sheetId: index.sheetId,
+      revision: revisionOfRef.current(index.sheetId),
+      view: viewRef.current,
+      width: canvas.width,
+      height: canvas.height,
+      pageWidth: index.pageWidth,
+      pageHeight: index.pageHeight,
+    };
   };
 
   /* Pan, pinch, momentum and wheel zoom, all from the shared gesture layer.
@@ -367,6 +397,23 @@ export function TiledRenderer({
   useEffect(() => {
     onStatsSource?.(readStats);
   }, [onStatsSource, readStats]);
+
+  /* Stable for the renderer's life. `current` reads refs, so it answers for
+     the moment it is asked rather than the last render. */
+  const viewSource = useMemo<ViewSource>(
+    () => ({
+      current: () => currentFrame(),
+      subscribe: (listener) => {
+        viewListenersRef.current.add(listener);
+        return () => viewListenersRef.current.delete(listener);
+      },
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    onViewSource?.(viewSource);
+  }, [onViewSource, viewSource]);
 
   useEffect(() => {
     let cancelled = false;
@@ -506,7 +553,7 @@ export function TiledRenderer({
   return (
     <div
       ref={hostRef}
-      className="viewer-render"
+      className="viewer-render relative"
       data-renderer="tiled"
       data-state={
         paintedSheet === sheetId
@@ -538,6 +585,7 @@ export function TiledRenderer({
       }
     >
       <canvas ref={canvasRef} className="viewer-canvas" />
+      {children}
       {paintedSheet !== sheetId && (
         <p className="type-caption text-fg-tertiary">
           {failedSheet === sheetId

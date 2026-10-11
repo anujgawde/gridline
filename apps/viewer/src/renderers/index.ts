@@ -3,7 +3,9 @@ export type {
   RenderState,
   SheetRendererProps,
   ViewControls,
+  ViewFrame,
   Viewport,
+  ViewSource,
 } from "./types";
 export { FullPageRenderer } from "./fullpage";
 export { prefetchEnabled, selectRenderer } from "./select";
