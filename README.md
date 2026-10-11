@@ -182,6 +182,7 @@ These exist to measure the app or to show a failure on purpose. **They are not f
 | `?renderer=fullpage` | Viewer | The naive renderer: parses the whole PDF before drawing. Kept as the baseline. |
 | `?prefetch=0` | Viewer | Turns off reading neighbouring sheets ahead. |
 | `?perf=1` | Viewer | Shows a cache readout over the drawing. |
+| `?markups=5000` | Viewer | Starts every sheet with that many seeded markups (up to 20,000), so drawing and hit-testing can be measured at a known count. |
 | `?grid=full` | Navigator | Draws every card instead of only the visible rows. Kept as the baseline. |
 | `?thumbs=0` | Navigator | No thumbnails. |
 | `?break=lookup` | Shell | Fails the remote lookup, to show the shell degrading. |

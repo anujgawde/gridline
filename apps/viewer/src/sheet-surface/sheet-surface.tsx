@@ -14,7 +14,8 @@ import {
   selectRenderer,
   TiledRenderer,
 } from "../renderers";
-import type { TileStatsSource, ViewControls } from "../renderers";
+import type { TileStatsSource, ViewControls, ViewSource } from "../renderers";
+import { MarkupLayer, MarkupStores, markupSeedCount } from "../markup";
 import { loadSheetIndex, loadSheetSource } from "../sources";
 import type { SheetIndexEntry, SheetSource } from "../sources";
 import type { SheetSurfaceProps } from "./types";
@@ -53,6 +54,10 @@ export function SheetSurface({ sheetId }: SheetSurfaceProps) {
      would be a layout shift over a drawing someone is reading. */
   const [showCachePanel] = useState(cachePanelRequested);
   const [prefetch] = useState(prefetchEnabled);
+  /* For the session: leaving a sheet and coming back finds its markups where
+     they were. Nothing survives a reload until markups are saved. */
+  const [markupStores] = useState(() => new MarkupStores(markupSeedCount()));
+  const [viewSource, setViewSource] = useState<ViewSource | null>(null);
 
   /* The address of the set and the sheet-to-page mapping are both fetched, not
      compiled in, so they resolve after this component is already on screen.
@@ -148,6 +153,10 @@ export function SheetSurface({ sheetId }: SheetSurfaceProps) {
     setStatsSource(() => next);
   }, []);
 
+  const takeViewSource = useCallback((next: ViewSource) => {
+    setViewSource(next);
+  }, []);
+
   if (!resolved) {
     return (
       <div className="viewer-surface">
@@ -177,8 +186,11 @@ export function SheetSurface({ sheetId }: SheetSurfaceProps) {
             onPainted={announce}
             onControls={takeControls}
             onStatsSource={takeStatsSource}
+            onViewSource={takeViewSource}
             neighbours={neighbours}
-          />
+          >
+            <MarkupLayer source={viewSource} stores={markupStores} />
+          </TiledRenderer>
         ) : (
           <FullPageRenderer
             sheetId={current}
