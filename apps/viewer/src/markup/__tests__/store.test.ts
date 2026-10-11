@@ -176,4 +176,40 @@ describe("MarkupStore", () => {
     store.undo();
     expect(listener).toHaveBeenCalledTimes(5);
   });
+
+  it("loads a set as one change with no history, numbering on from the highest", () => {
+    const store = makeStore();
+    const source = makeStore();
+    const a = source.add(rect(10, 10));
+    const b = source.add(rect(15, 15));
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.load([{ ...a, number: 7 }, b]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.canUndo).toBe(false);
+    expect(store.markups.map((m) => m.id)).toEqual([a.id, b.id]);
+    /* Load order is stacking order: b was loaded last, so it is on top. */
+    expect(store.hitTest([20, 20], 0)?.id).toBe(b.id);
+    expect(store.add(rect(500, 500)).number).toBe(8);
+  });
+
+  it("replaces whatever was there on load, index included", () => {
+    const store = makeStore();
+    store.add(rect(10, 10));
+    store.load([]);
+    expect(store.markups).toEqual([]);
+    expect(store.hitTest([20, 20], 0)).toBeNull();
+  });
+
+  it("returns what touches a box, bottom first", () => {
+    const store = makeStore();
+    const low = store.add(rect(10, 10));
+    store.add(rect(1000, 1000));
+    const high = store.add(rect(20, 20));
+    expect(store.inBox({ x: 0, y: 0, w: 100, h: 100 }).map((m) => m.id)).toEqual([
+      low.id,
+      high.id,
+    ]);
+  });
 });
+

@@ -2,7 +2,7 @@ import { bounds, hits } from "./geometry";
 import { Quadtree } from "./quadtree";
 import { Markup } from "./schema";
 import type { MarkupDraft, MarkupPatch, Point } from "./schema";
-import type { MarkupStoreOptions } from "./types";
+import type { Box, MarkupStoreOptions } from "./types";
 
 /* How many edits undo can walk back. The oldest drops off past it. */
 export const HISTORY_LIMIT = 200;
@@ -106,6 +106,33 @@ export class MarkupStore {
     this.#put(after, this.#order.get(id)!);
     this.#record({ op: "update", before, after });
     return after;
+  }
+
+  /* Replaces everything with a set read from elsewhere, in the given order,
+     as one change with no history: loading is not an edit anyone can undo.
+     Numbering carries on above the highest number loaded. */
+  load(markups: readonly Markup[]): void {
+    for (const id of [...this.#shapes.keys()]) this.#drop(id);
+    this.#undo = [];
+    this.#redo = [];
+    this.#nextOrder = 1;
+    this.#nextNumber = 1;
+    for (const markup of markups) {
+      const shape = Markup.parse(markup);
+      this.#put(shape, this.#nextOrder++);
+      this.#nextNumber = Math.max(this.#nextNumber, shape.number + 1);
+    }
+    this.#changed();
+  }
+
+  /* Every markup whose bounds touch a box, bottom first. Drawing calls this
+     with the visible region, so a sheet with thousands of markups draws only
+     the few on screen. */
+  inBox(box: Box): Markup[] {
+    return this.#index
+      .query(box)
+      .map((id) => this.#shapes.get(id)!)
+      .sort((a, b) => this.#order.get(a.id)! - this.#order.get(b.id)!);
   }
 
   /* The topmost markup under a point, or null. The index narrows by box, the
