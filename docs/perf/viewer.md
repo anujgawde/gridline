@@ -401,8 +401,8 @@ session agrees.
 **A second session agreed on 2026-10-07**, re-taken after deep zoom landed:
 `zoomDeepening` settle p95 66 ms (63–67) and median 51 ms, frame p95 21 ms,
 worst frame 23 ms, 0 ms blocked; `zoomSteady` and `pan` within the same
-spreads. The gates in `budgets.ts` still sit at the older, slower readings
-and have not been tightened yet.
+spreads. The interaction gates in `budgets.ts` are now set from the worst
+reading across the two sessions; see Budgets below.
 
 **The gesture layer costs nothing measurable.** Panning and zooming inside
 cached scale block the main thread for 0 ms across the whole gesture. Crossing
@@ -487,9 +487,12 @@ is a gate that fails on a good day:
   past it, where tiles are refetched from the browser's disk cache and decoded.
   The spec samples three sheets without knowing which side they fall on, so its
   median moves with the draw.
-- **Worst pan frame, 44 ms.** This one was previously 34 ms and passed twice by a
-  single millisecond, against readings spanning 26–35. A gate sitting inside its
-  own noise band is a gate that will eventually fail for no reason.
+- **Every interaction gate.** Two sessions agreed, and each gate is the worse of
+  the two plus 25%: worst pan frame 24 ms, `zoomSteady` settle p95 85 ms and
+  worst frame 28 ms, `zoomDeepening` settle p95 84 ms and worst frame 32 ms.
+  The worst pan frame was once 34 ms and passed twice by a single millisecond
+  against readings spanning 26–35; a gate sitting inside its own noise band
+  will eventually fail for no reason.
 
 **One gate is not a time at all.** On the sequential walk, sheet change is
 bimodal by construction — about 25 ms on a prefetch hit, about 1310 on a miss —
@@ -501,10 +504,10 @@ or above 25%**. Measured 39% and 51%. It was verified by running the same walk
 with prefetch disabled, where it reads 0% and the gate fails — a gate that has
 never been seen to fail is a decoration.
 
-One gate moved sharply downward. `zoomDeepening` blocking was 448 ms, from an
-earlier 358 ms reading; it then measured 156 ms (103–205) and the gate is 256 ms.
-The old figure would have passed a 2.9x regression. The latest reading is 0 ms,
-from one session; the gate stays at 256 until a second agrees.
+The interaction gates moved sharply downward. `zoomDeepening` blocking went
+448 → 256 → 50 ms, following readings of 358, then 156 (103–205), then 0 ms in
+two sessions, so it now sits on the absolute floor. `zoomDeepening` settle p95
+went 148 → 84 ms; at 148 it would have passed zoom getting 2.2x slower.
 
 Two cold-start gates were re-derived when the panel landed: first sheet on
 canvas to 11 940 ms from 9549 (8987–9577), and main-thread block to 306 ms from

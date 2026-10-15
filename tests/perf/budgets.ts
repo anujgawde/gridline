@@ -107,44 +107,39 @@ export const BUDGETS = {
   /* Interaction on a loaded sheet. Median of 5 runs, and the tightest spreads
      of anything here.
 
-     Re-taken after the navigator panel landed, every reading came in under
-     the figures below — zoomDeepening blocking at 0 ms (0–0) against 156 —
-     and nothing on the viewer's tile path changed to explain it. The gates
-     are left where they are until a second session agrees: tightened to one
-     good day, they would fail on an ordinary one. */
+     Every gate below is set from the worst reading across two sessions that
+     agree — one after the navigator panel landed, one after deep zoom
+     (2026-10-07) — because a gate under either session's figure would fail on
+     a day already seen. The earlier, slower readings these replaced (pan frames
+     at 26–35 ms, zoomDeepening blocking at 156 ms) are history, not a band to
+     tolerate: nothing in either later session came near them. */
   interaction: {
     pan: {
-      /* 26 ms measured (26–27) in the latest run, but readings across runs span
-         26–35, which is wider than 25% of the median. Set from the worst of
-         those rather than from this run's tight spread: the old 34 sat *inside*
-         the observed band and passed twice by a single millisecond. */
-      frameWorstMs: 44,
+      /* 19 ms worst across both sessions (18–19). Was 44, set from the older
+         26–35 band, which would have passed a 2.3x regression. */
+      frameWorstMs: 24,
       // 0 ms measured — see the absolute-floor note above.
       blockedMs: 50,
     },
     zoomSteady: {
-      // 72 ms measured (69–83)
-      settleP95Ms: 94,
-      // 34 ms measured (33–38)
-      frameWorstMs: 45,
+      // 68 ms worst across both sessions (66–68). Was 94.
+      settleP95Ms: 85,
+      // 22 ms worst across both sessions (20–22). Was 45.
+      frameWorstMs: 28,
       // 0 ms measured
       blockedMs: 50,
     },
     zoomDeepening: {
-      // 114 ms measured (101–116)
-      settleP95Ms: 148,
-      // 51 ms measured (50–53)
-      frameWorstMs: 68,
-      /* 156 ms measured (103–205), set from the worst reading because the spread
-         is wider than the headroom. Still the largest number in this file, and
-         still tile work during a zoom into unfetched levels rather than anything
-         the gesture layer does.
-
-         Tightened hard from 448, which came from an earlier 358 ms (312–363)
-         reading. That gate would now pass a 2.9x regression, which is not a
-         gate. If this trips and the readings look like the old regime rather
-         than a real change, the 358 history is the thing to check first. */
-      blockedMs: 256,
+      // 67 ms worst across both sessions (63–67). Was 148.
+      settleP95Ms: 84,
+      // 25 ms worst across both sessions (22–25). Was 68.
+      frameWorstMs: 32,
+      /* 0 ms in both sessions, so the absolute floor. Was 256, from an earlier
+         156 ms (103–205) reading, itself down from 358. That cost was tile work
+         during a zoom into unfetched levels, not the gesture layer; if this
+         trips, check whether the readings look like that old regime before
+         reading it as a new regression. */
+      blockedMs: 50,
     },
   },
 } as const;
